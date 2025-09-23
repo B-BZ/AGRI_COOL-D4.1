@@ -416,3 +416,7 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Data Folders that caused error in staging
+Modelica_Model/AGRI_COOL/Resources/Data
+Modelica_Model/AGRI_COOL/Obsolete
