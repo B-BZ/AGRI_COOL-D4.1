@@ -59214,56 +59214,61 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
 
   package Controls
     model CompressorStepController
-      import Modelica.Units.SI;
-      import Modelica.Blocks.Interfaces.{RealInput, RealOutput};
+    import Modelica.Units.SI;
+    import Modelica.Blocks.Interfaces.{RealInput, RealOutput};
 
-      parameter Real E[4] = {150, 350, 500, 575} "Irradiance thresholds [W/m2]";
-      parameter Real F[4] = { 80, 133, 186, 240} "Frequencies [Hz] at steps 1..4";
-      parameter Real Fmax = 240 "Maximum frequency [Hz]";
-      parameter SI.Time upDelay   = 100 "Upgrade delay [s]";
-      parameter SI.Time downDelay = 250 "Downgrade delay [s]";
+    parameter Real E[4] = {150, 350, 500, 575} "Irradiance thresholds [W/m2]";
+    parameter Real F[4] = { 80, 133, 186, 240} "Frequencies [Hz] at steps 1..4";
+    parameter Real Fmax = 240 "Maximum frequency [Hz]";
+    parameter SI.Time upDelay   = 100 "Upgrade delay [s]";
+    parameter SI.Time downDelay = 250 "Downgrade delay [s]";
 
-      RealInput  G "Irradiance [W/m2]"
-        annotation(Placement(transformation(extent={{-120,-20},{-100,20}})));
-      RealOutput freqNorm "Normalized compressor frequency (Hz/Fmax)"
-        annotation(Placement(transformation(extent={{100,-20},{120,20}})));
+    RealInput  G "Irradiance [W/m2]"
+      annotation(Placement(transformation(extent={{-120,-20},{-100,20}})));
+    RealOutput freqNorm "Normalized compressor frequency (Hz/Fmax)"
+      annotation(Placement(transformation(extent={{100,-20},{120,20}})));
 
     protected
-      Integer desStep;
-      discrete Integer  ctrlStep(start=0,           fixed=true);
-      discrete SI.Time  nextUpTime(start=upDelay,   fixed=true);
-      discrete SI.Time  nextDownTime(start=downDelay, fixed=true);
-      Real freqHz;
+    Integer desStep;
+    discrete Integer  ctrlStep(start=0, fixed=true);
+    discrete SI.Time  nextUpTime(fixed=false);
+    discrete SI.Time  nextDownTime(fixed=false);
+    Real freqHz;
+
+    initial algorithm
+    // make it relative to tStart
+    nextUpTime   := time + upDelay;
+    nextDownTime := time + downDelay;
 
     equation
-      desStep =
-        if G < E[1] then 0
-        elseif G < E[2] then 1
-        elseif G < E[3] then 2
-        elseif G < E[4] then 3
-        else 4;
+    desStep =
+      if G < E[1] then 0
+      elseif G < E[2] then 1
+      elseif G < E[3] then 2
+      elseif G < E[4] then 3
+      else 4;
 
     algorithm
-      // Timed upgrade: ALWAYS re-arm timer
-      when time >= pre(nextUpTime) then
-        if desStep > pre(ctrlStep) then
-          ctrlStep := min(pre(ctrlStep) + 1, desStep);
-        end if;
-        nextUpTime := time + upDelay;
-      end when;
+    // Timed upgrade: ALWAYS re-arm timer
+    when time >= pre(nextUpTime) then
+      if desStep > pre(ctrlStep) then
+        ctrlStep := min(pre(ctrlStep) + 1, desStep);
+      end if;
+      nextUpTime := time + upDelay;
+    end when;
 
-      // Timed downgrade: ALWAYS re-arm timer
-      when time >= pre(nextDownTime) then
-        if desStep < pre(ctrlStep) then
-          ctrlStep := max(pre(ctrlStep) - 1, desStep);
-        end if;
-        nextDownTime := time + downDelay;
-      end when;
+    // Timed downgrade: ALWAYS re-arm timer
+    when time >= pre(nextDownTime) then
+      if desStep < pre(ctrlStep) then
+        ctrlStep := max(pre(ctrlStep) - 1, desStep);
+      end if;
+      nextDownTime := time + downDelay;
+    end when;
 
     equation
-      // Safe mapping to frequency
-      freqHz   = if ctrlStep == 0 then 0.0 else F[ctrlStep];
-      freqNorm = freqHz / Fmax;
+    // Safe mapping to frequency
+    freqHz   = if ctrlStep == 0 then 0.0 else F[ctrlStep];
+    freqNorm = freqHz / Fmax;
     end CompressorStepController;
 
     model test0

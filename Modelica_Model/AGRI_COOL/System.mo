@@ -482,7 +482,10 @@ package System
     annotation(
       Icon(coordinateSystem(preserveAspectRatio = false, extent = {{-780, -320}, {140, 120}}), graphics = {Rectangle(extent = {{-776, 118}, {138, -320}}, lineColor = {0, 140, 72}, fillColor = {0, 140, 72}, fillPattern = FillPattern.Solid), Rectangle(extent = {{-746, 94}, {104, -294}}, lineColor = {0, 140, 72}, fillColor = {255, 255, 255}, fillPattern = FillPattern.Solid), Text(extent = {{-726, 88}, {84, -276}}, textColor = {0, 140, 72}, textString = "System_OL", textStyle = {TextStyle.Bold})}),
       Diagram(coordinateSystem(preserveAspectRatio = false, extent = {{-780, -320}, {140, 120}})),
-      experiment(StartTime = 0, StopTime = 86400, __Dymola_Algorithm = "Dassl"));
+      experiment(
+        StartTime=172800,
+        StopTime=432000,
+        __Dymola_Algorithm="Dassl"));
   end System_OL_NightCTRL;
 
   model System_CL_NightCTRL "Agri-Cool system with closed-loop night control logic"
@@ -968,7 +971,10 @@ package System
     annotation(
       Icon(coordinateSystem(preserveAspectRatio = false, extent = {{-780, -320}, {140, 120}}), graphics = {Rectangle(extent = {{-778, 118}, {136, -320}}, lineColor = {0, 140, 72}, fillColor = {0, 140, 72}, fillPattern = FillPattern.Solid), Rectangle(extent = {{-748, 94}, {102, -294}}, lineColor = {0, 140, 72}, fillColor = {255, 255, 255}, fillPattern = FillPattern.Solid), Text(extent = {{-728, 88}, {82, -276}}, textColor = {0, 140, 72}, textStyle = {TextStyle.Bold}, textString = "System_CL")}),
       Diagram(coordinateSystem(preserveAspectRatio = false, extent = {{-780, -320}, {140, 120}})),
-      experiment(StopTime=259200, __Dymola_Algorithm="Dassl"));
+      experiment(
+        StartTime=86400,
+        StopTime=259200,
+        __Dymola_Algorithm="Dassl"));
   end System_CL_NightCTRL;
 
   model Air_Loop "AirSide of Agri_cool System"
