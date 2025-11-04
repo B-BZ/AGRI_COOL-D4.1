@@ -23,15 +23,15 @@ package Components
 
     model ColdROOM_V01
       "This model contains the structure of cold room and relevant connectors to other models."
-    replaceable package Medium_CR = Modelica.Media.Interfaces.PartialMedium
+      replaceable package Medium_CR = Modelica.Media.Interfaces.PartialMedium
       "Air medium in the cold room";
 
-//cold room dimentions
+      //cold room dimentions
       parameter Real VFlo(unit="m3") = 4.6*11*4 "Room Volume";
       parameter Real AFlo(unit="m2") = 4.6*11 "Floor area";
       parameter Real hRoo(unit="m")  = 4 "Room height";
 
-    parameter Integer nPortsAir(min=2) = 5
+      parameter Integer nPortsAir(min=2) = 5
         "Number of air inlets/outlets" annotation(Evaluate=true);
 
       AGRI_COOL.Buildings.ThermalZones.Detailed.MixedAir CR_Zone(
@@ -54,14 +54,11 @@ package Components
           A={AFlo,AFlo},
           til={AGRI_COOL.Buildings.Types.Tilt.Floor,AGRI_COOL.Buildings.Types.Tilt.Floor}),
         nSurBou=0,
-        p_start=Medium_CR.p_default + 100,
-        T_start=T_start_CR,
         nPorts=nPortsAir,
-        energyDynamics=Modelica.Fluid.Types.Dynamics.SteadyStateInitial)
-                                                                   "cold room zone"
+        energyDynamics=Modelica.Fluid.Types.Dynamics.FixedInitial) "cold room zone"
         annotation (Placement(transformation(extent={{-18,10},{22,50}})));
 
-// Thermal envelop data records
+      // Thermal envelop data records
       parameter AGRI_COOL.Buildings.HeatTransfer.Data.Solids.Generic matPlySty(
         x(displayUnit="mm") = 0.2,
         k=0.034,
@@ -94,12 +91,12 @@ package Components
                                                 "Weather data"
         annotation (Placement(transformation(extent={{44,90},{64,110}})));
       AGRI_COOL.Buildings.HeatTransfer.Sources.PrescribedTemperature
-                                                      preTem
+                                                      preTem "object for outdoor temperature"
         annotation (Placement(transformation(extent={{-72,-12},{-52,8}})));
-      AGRI_COOL.Buildings.HeatTransfer.Windows.BaseClasses.ThermalConductor thermalConductor(G=0.001)
+      AGRI_COOL.Buildings.HeatTransfer.Windows.BaseClasses.ThermalConductor thermalConductor(G=G)
         annotation (Placement(transformation(extent={{-12,-12},{10,10}})));
       Modelica.Blocks.Sources.Constant G_FC(k=1)
-        annotation (Placement(transformation(extent={{-46,8},{-26,28}})));
+        annotation (Placement(transformation(extent={{-48,6},{-28,26}})));
       Modelica.Fluid.Vessels.BaseClasses.VesselFluidPorts_b ports_Air_CR[nPortsAir](
           redeclare package Medium = Medium_CR) "Fluid inlets and outlets"
         annotation (Placement(transformation(
@@ -128,8 +125,10 @@ package Components
         annotation (Placement(transformation(extent={{-66,42},{-46,62}})));
       parameter Modelica.Media.Interfaces.Types.Temperature T_start_CR=Medium_CR.T_default
         "Start value of zone air temperature";
-      Modelica.Blocks.Interfaces.RealInput Q_People
+      Modelica.Blocks.Interfaces.RealInput Q_People "heat load from workers inside the cold room"
         annotation (Placement(transformation(extent={{-126,32},{-86,72}})));
+      parameter Modelica.Units.SI.ThermalConductance G=0.001
+        "Constant thermal conductance of material";
     equation
       connect(CR_Zone.weaBus, weaBus1) annotation (Line(
           points={{19.9,47.9},{20,47.9},{20,86},{54,86},{54,100}},
@@ -137,7 +136,7 @@ package Components
           thickness=0.5));
       connect(preTem.port,thermalConductor. port_a) annotation (Line(points={{-52,-2},
               {-50,-1},{-12,-1}},                color={191,0,0}));
-      connect(G_FC.y, thermalConductor.u) annotation (Line(points={{-25,18},{-22,18},
+      connect(G_FC.y, thermalConductor.u) annotation (Line(points={{-27,16},{-22,16},
               {-22,7.8},{-13.1,7.8}}, color={0,0,127}));
       connect(thermalConductor.port_b, CR_Zone.surf_conBou[1])
         annotation (Line(points={{10,-1},{8,0},{8,13.75}}, color={191,0,0}));
@@ -226,233 +225,24 @@ package Components
             Text(
               extent={{-72,-34},{18,-36}},
               textColor={28,108,200},
-              textString="Thermal Envelope")}));
+              textString="Thermal Envelope")}),
+        experiment(
+          StartTime=10368000,
+          StopTime=10800000,
+          __Dymola_Algorithm="Dassl"),
+        Documentation(info="<html>
+<p>This model represents the <b>thermal structure of the cold room</b> used in the AGRI-COOL system.</p><p>The core of the model is based on the <span style=\"font-family: Courier New;\">AGRI_COOL.Buildings.ThermalZones.Detailed.MixedAir</span> component, which dynamically captures the energy balance and air temperature inside the cold room.</p>
+<p>All relevant <b>construction material data records</b>&mdash;including walls, floor, and insulation layers&mdash;are integrated to represent the physical characteristics of the building envelope. These materials define how heat is transferred through the cold room&rsquo;s boundaries, ensuring realistic thermal behavior under varying outdoor and internal conditions.</p>
+</html>"));
     end ColdROOM_V01;
 
-    model Test01_CR_V01
-      extends Modelica.Icons.Example;
-      extends AGRI_COOL.Components.Base_Classes.Medium_Definition;
-
-      ColdROOM_V01 coldROOM_V01(redeclare package Medium_CR = Medium_Air,
-          T_start_CR=288.15)
-        annotation (Placement(transformation(extent={{30,34},{50,54}})));
-      Buildings.BoundaryConditions.WeatherData.ReaderTMY3 weaDat_CR(
-        filNam=ModelicaServices.ExternalReferences.loadResource("modelica://AGRI_COOL/Resources/weatherdata/SOM_BN_Mogadishu.Intl.AP.632600_TMYx.2009-2023.mos"),
-        computeWetBulbTemperature=false,
-        HInfHorSou=AGRI_COOL.Buildings.BoundaryConditions.Types.DataSource.Parameter,
-        HSou=AGRI_COOL.Buildings.BoundaryConditions.Types.RadiationDataSource.Input_HGloHor_HDifHor)
-        annotation (Placement(transformation(extent={{24,72},{44,92}})));
-      Cooling_Loads.Infiltration_load.Infiltration_Door infiltration(redeclare
-          package Medium_CR = Medium_Air)
-        annotation (Placement(transformation(extent={{-58,50},{-38,70}})));
-      Cooling_Loads.Integrated.Loads loads(n=2, T_source=298.15)
-        annotation (Placement(transformation(extent={{-22,12},{2,32}})));
-      Modelica.Blocks.Sources.Constant Zero(k=0) "No radiation"
-        annotation (Placement(transformation(extent={{-28,78},{-8,98}})));
-      Buildings.Fluid.Sources.Outside           out(redeclare package Medium =
-            Medium_Air, nPorts=2)
-        annotation (Placement(transformation(extent={{-92,48},{-72,68}})));
-      Modelica.Blocks.Sources.Pulse t_people(
-        amplitude=1,
-        width=8.3333334,
-        period(displayUnit="h") = 86400,
-        offset=0,
-        startTime(displayUnit="h") = 28800)
-        annotation (Placement(transformation(extent={{-94,0},{-74,20}})));
-      Modelica.Blocks.Sources.Pulse m_in(
-        amplitude=0.2777778,
-        width=2.0833333,
-        period(displayUnit="h") = 86400,
-        offset=0,
-        startTime(displayUnit="h") = 28800)
-        annotation (Placement(transformation(extent={{-68,2},{-48,22}})));
-      Modelica.Blocks.Sources.Constant m_out(k=0)
-        annotation (Placement(transformation(extent={{-36,-18},{-16,2}})));
-      AGRI_COOL.Buildings.Fluid.Sources.Boundary_pT bou(redeclare package
-          Medium = Medium_Air, nPorts=1)
-        annotation (Placement(transformation(extent={{82,-66},{62,-46}})));
-      AGRI_COOL.Buildings.Fluid.Sources.MassFlowSource_T bouT(
-        redeclare package Medium = Medium_Air,
-        m_flow=0.1,
-        T=283.15,
-        use_m_flow_in=false,
-        nPorts=1)
-        "Boundary for temperature test"
-        annotation (Placement(transformation(extent={{-70,-64},{-50,-44}})));
-    equation
-      connect(weaDat_CR.weaBus, coldROOM_V01.weaBus1) annotation (Line(
-          points={{44,82},{45.4,82},{45.4,54}},
-          color={255,204,51},
-          thickness=0.5));
-      connect(Zero.y, weaDat_CR.HGloHor_in) annotation (Line(points={{-7,88},{18,88},
-              {18,69},{23,69}}, color={0,0,127}));
-      connect(Zero.y, weaDat_CR.HDifHor_in) annotation (Line(points={{-7,88},{18,88},
-              {18,72.5},{23,72.5}}, color={0,0,127}));
-      connect(weaDat_CR.weaBus, infiltration.weaBus1) annotation (Line(
-          points={{44,82},{46,82},{46,66},{-34,66},{-34,74},{-62,74},{-62,65},{-58,65}},
-          color={255,204,51},
-          thickness=0.5));
-      connect(infiltration.port_b_env, coldROOM_V01.ports_Air_CR[1]) annotation (
-          Line(points={{-38,65},{-34,65},{-34,48},{20,48},{20,37.7},{30,37.7}},
-            color={0,127,255}));
-      connect(weaDat_CR.weaBus, out.weaBus) annotation (Line(
-          points={{44,82},{44,98},{-94,98},{-94,58.2},{-92,58.2}},
-          color={255,204,51},
-          thickness=0.5));
-      connect(infiltration.port_b_in, coldROOM_V01.ports_Air_CR[2]) annotation (
-          Line(points={{-37.8,60},{-34,60},{-34,48},{20,48},{20,37.7},{30,37.7}},
-            color={0,127,255}));
-      connect(infiltration.port_a_in, coldROOM_V01.ports_Air_CR[3]) annotation (
-          Line(points={{-38,52},{-38,37.7},{30,37.7}}, color={0,127,255}));
-      connect(loads.port1, coldROOM_V01.heaPorAir1) annotation (Line(points={{2.2,22.8},
-              {68,22.8},{68,45.6},{50,45.6}}, color={191,0,0}));
-      connect(coldROOM_V01.T_in_CR, loads.T_in_K1) annotation (Line(points={{50.8,
-              51.2},{78,51.2},{78,0},{-44,0},{-44,31.2},{-22.8,31.2}},
-                                                                 color={0,0,127}));
-      connect(t_people.y, loads.t_people1) annotation (Line(points={{-73,10},{-34,10},
-              {-34,22.2},{-22.6,22.2}}, color={0,0,127}));
-      connect(m_in.y, loads.m_In1) annotation (Line(points={{-47,12},{-32,12},{-32,18.2},
-              {-22.6,18.2}}, color={0,0,127}));
-      connect(m_out.y, loads.m_Out1) annotation (Line(points={{-15,-8},{-10,-8},{-10,
-              8},{-23,8},{-23,14}}, color={0,0,127}));
-      connect(bouT.ports[1], coldROOM_V01.ports_Air_CR[4]) annotation (Line(
-            points={{-50,-54},{-16,-54},{-16,-28},{30,-28},{30,37.7}}, color={0,
-              127,255}));
-      connect(bou.ports[1], coldROOM_V01.ports_Air_CR[5]) annotation (Line(
-            points={{62,-56},{28,-56},{28,-2},{30,-2},{30,37.7}}, color={0,127,
-              255}));
-      connect(loads.Q_people1, coldROOM_V01.Q_People) annotation (Line(points={
-              {2.4,27.8},{14,27.8},{14,49.2},{29.4,49.2}}, color={0,0,127}));
-      connect(infiltration.port_a_out, out.ports[1]) annotation (Line(points={{
-              -58,60},{-68,60},{-68,57},{-72,57}}, color={0,127,255}));
-      connect(infiltration.port_b_out, out.ports[2]) annotation (Line(points={{
-              -58,52},{-64,52},{-64,59},{-72,59}}, color={0,127,255}));
-      connect(t_people.y, infiltration.Door_Signal) annotation (Line(points={{
-              -73,10},{-72,10},{-72,55.2},{-59,55.2}}, color={0,0,127}));
-      annotation (Icon(coordinateSystem(preserveAspectRatio=false)), Diagram(
-            coordinateSystem(preserveAspectRatio=false)));
-    end Test01_CR_V01;
-
-    model Test02_CR_V01
-      extends Modelica.Icons.Example;
-      extends AGRI_COOL.Components.Base_Classes.Medium_Definition;
-
-      ColdROOM_V01 coldROOM_V01(redeclare package Medium_CR = Medium_Air,
-          T_start_CR=288.15)
-        annotation (Placement(transformation(extent={{30,34},{50,54}})));
-      Buildings.BoundaryConditions.WeatherData.ReaderTMY3 weaDat_CR(
-        filNam=ModelicaServices.ExternalReferences.loadResource("modelica://AGRI_COOL/Resources/weatherdata/SOM_BN_Mogadishu.Intl.AP.632600_TMYx.2009-2023.mos"),
-        computeWetBulbTemperature=false,
-        HInfHorSou=AGRI_COOL.Buildings.BoundaryConditions.Types.DataSource.Parameter,
-        HSou=AGRI_COOL.Buildings.BoundaryConditions.Types.RadiationDataSource.Input_HGloHor_HDifHor)
-        annotation (Placement(transformation(extent={{24,72},{44,92}})));
-      Cooling_Loads.Infiltration_load.Infiltration_Door infiltration(redeclare
-          package Medium_CR = Medium_Air)
-        annotation (Placement(transformation(extent={{-58,50},{-38,70}})));
-      Cooling_Loads.Integrated.Loads loads(n=2, T_source=298.15)
-        annotation (Placement(transformation(extent={{-22,12},{2,32}})));
-      Modelica.Blocks.Sources.Constant Zero(k=0) "No radiation"
-        annotation (Placement(transformation(extent={{-28,78},{-8,98}})));
-      Buildings.Fluid.Sources.Outside           out(redeclare package Medium =
-            Medium_Air, nPorts=2)
-        annotation (Placement(transformation(extent={{-92,48},{-72,68}})));
-      Modelica.Blocks.Sources.Pulse t_people(
-        amplitude=1,
-        width=8.3333334,
-        period(displayUnit="h") = 86400,
-        offset=0,
-        startTime(displayUnit="h") = 28800)
-        annotation (Placement(transformation(extent={{-94,0},{-74,20}})));
-      Modelica.Blocks.Sources.Pulse m_in(
-        amplitude=0.2777778,
-        width=2.0833333,
-        period(displayUnit="h") = 86400,
-        offset=0,
-        startTime(displayUnit="h") = 28800)
-        annotation (Placement(transformation(extent={{-68,2},{-48,22}})));
-      AGRI_COOL.Buildings.Fluid.Sources.Boundary_pT bou(redeclare package
-          Medium = Medium_Air, nPorts=1)
-        annotation (Placement(transformation(extent={{82,-66},{62,-46}})));
-      AGRI_COOL.Buildings.Fluid.Sources.MassFlowSource_T bouT(
-        redeclare package Medium = Medium_Air,
-        m_flow=1,
-        T=283.15,
-        use_m_flow_in=false,
-        nPorts=1)
-        "Boundary for temperature test"
-        annotation (Placement(transformation(extent={{-70,-64},{-50,-44}})));
-      Modelica.Blocks.Sources.CombiTimeTable combiTimeTable(table=[0,0; 8*3600,
-            0.0; 8*3600,1; 9*3600,1; 9*3600,0; 17*3600,0; 17*3600,1; 18*3600,1;
-            18*3600,0; 24*3600,0], columns={2})
-        annotation (Placement(transformation(extent={{-124,30},{-104,50}})));
-      Modelica.Blocks.Sources.Pulse m_out(
-        amplitude=0.1777778,
-        width=1.0833333,
-        period(displayUnit="h") = 86400,
-        offset=0,
-        startTime(displayUnit="h") = 61200)
-        annotation (Placement(transformation(extent={{-50,-28},{-30,-8}})));
-    equation
-      connect(weaDat_CR.weaBus, coldROOM_V01.weaBus1) annotation (Line(
-          points={{44,82},{45.4,82},{45.4,54}},
-          color={255,204,51},
-          thickness=0.5));
-      connect(Zero.y, weaDat_CR.HGloHor_in) annotation (Line(points={{-7,88},{18,88},
-              {18,69},{23,69}}, color={0,0,127}));
-      connect(Zero.y, weaDat_CR.HDifHor_in) annotation (Line(points={{-7,88},{18,88},
-              {18,72.5},{23,72.5}}, color={0,0,127}));
-      connect(weaDat_CR.weaBus, infiltration.weaBus1) annotation (Line(
-          points={{44,82},{46,82},{46,66},{-34,66},{-34,74},{-62,74},{-62,65},{-58,65}},
-          color={255,204,51},
-          thickness=0.5));
-      connect(infiltration.port_b_env, coldROOM_V01.ports_Air_CR[1]) annotation (
-          Line(points={{-38,65},{-34,65},{-34,48},{20,48},{20,37.7},{30,37.7}},
-            color={0,127,255}));
-      connect(weaDat_CR.weaBus, out.weaBus) annotation (Line(
-          points={{44,82},{44,98},{-94,98},{-94,58.2},{-92,58.2}},
-          color={255,204,51},
-          thickness=0.5));
-      connect(infiltration.port_b_in, coldROOM_V01.ports_Air_CR[2]) annotation (
-          Line(points={{-37.8,60},{-34,60},{-34,48},{20,48},{20,37.7},{30,37.7}},
-            color={0,127,255}));
-      connect(infiltration.port_a_in, coldROOM_V01.ports_Air_CR[3]) annotation (
-          Line(points={{-38,52},{-38,37.7},{30,37.7}}, color={0,127,255}));
-      connect(loads.port1, coldROOM_V01.heaPorAir1) annotation (Line(points={{2.2,22.8},
-              {68,22.8},{68,45.6},{50,45.6}}, color={191,0,0}));
-      connect(coldROOM_V01.T_in_CR, loads.T_in_K1) annotation (Line(points={{50.8,
-              51.2},{78,51.2},{78,0},{-44,0},{-44,31.2},{-22.8,31.2}},
-                                                                 color={0,0,127}));
-      connect(t_people.y, loads.t_people1) annotation (Line(points={{-73,10},{-34,10},
-              {-34,22.2},{-22.6,22.2}}, color={0,0,127}));
-      connect(m_in.y, loads.m_In1) annotation (Line(points={{-47,12},{-32,12},{-32,18.2},
-              {-22.6,18.2}}, color={0,0,127}));
-      connect(bouT.ports[1], coldROOM_V01.ports_Air_CR[4]) annotation (Line(
-            points={{-50,-54},{-16,-54},{-16,-28},{30,-28},{30,37.7}}, color={0,
-              127,255}));
-      connect(bou.ports[1], coldROOM_V01.ports_Air_CR[5]) annotation (Line(
-            points={{62,-56},{28,-56},{28,-2},{30,-2},{30,37.7}}, color={0,127,
-              255}));
-      connect(loads.Q_people1, coldROOM_V01.Q_People) annotation (Line(points={
-              {2.4,27.8},{14,27.8},{14,49.2},{29.4,49.2}}, color={0,0,127}));
-      connect(infiltration.port_a_out, out.ports[1]) annotation (Line(points={{
-              -58,60},{-68,60},{-68,57},{-72,57}}, color={0,127,255}));
-      connect(infiltration.port_b_out, out.ports[2]) annotation (Line(points={{
-              -58,52},{-64,52},{-64,59},{-72,59}}, color={0,127,255}));
-      connect(combiTimeTable.y[1], infiltration.Door_Signal) annotation (Line(
-            points={{-103,40},{-90,40},{-90,42},{-59,42},{-59,55.2}}, color={0,
-              0,127}));
-      connect(m_out.y, loads.m_Out1) annotation (Line(points={{-29,-18},{-23,
-              -18},{-23,14}}, color={0,0,127}));
-      annotation (Icon(coordinateSystem(preserveAspectRatio=false)), Diagram(
-            coordinateSystem(preserveAspectRatio=false)));
-    end Test02_CR_V01;
   end Cold_Room;
 
   package Cooling_Loads
     "This package contains models that calculate the dynamic cooling demand of the cold room."
 
     package Infiltration_load
-
+      "this package contains models that are responsible for airflow between coldr room and outdoor air"
       model Infiltration_Door
         "This model computes the infiltration heat loat as air stream that enters the cold room with different temperature and relative humidity when door is open, or the air leakage from seals."
         replaceable package Medium_CR = Modelica.Media.Interfaces.PartialMedium
@@ -739,8 +529,8 @@ package Components
             crop_Outflow.H_flow = m * cp * T;
           assert(m >= 0, "Mass flow rate must be non-negative.");
           assert(T >= 190 and T <= 350, "Temperature is out of expected range.");
-// Relating Crop_Outflow parameters to corresponding values
-// Convert T to Kelvin for H_flow calculation
+            // Relating Crop_Outflow parameters to corresponding values
+            // Convert T to Kelvin for H_flow calculation
               annotation (Placement(transformation(extent={{-128,-20},{-88,20}})),
                         Icon(coordinateSystem(preserveAspectRatio=false),
                   graphics={Bitmap(
@@ -762,7 +552,7 @@ package Components
             parameter Modelica.Units.SI.MassFlowRate m_flow_min = 0.00000001
               "Minimum inflow rate to consider for dynamic enthalpy calculation";
 
-// States
+            // States
             Modelica.Units.SI.Mass m(start = m_Initial, min=0);
             Modelica.Units.SI.Enthalpy H(start = m_Initial * cp * T_Initial);
             Modelica.Units.SI.Temperature T(start = T_Initial) "Temperature [K]";
@@ -782,29 +572,29 @@ package Components
               annotation (Placement(transformation(extent={{96,-58},{116,-38}})));
 
           equation
-// Mass Balance: Prevent singularity issues when mass flow is near zero
-//   der(m) = if abs(crop_Inflow.m_flow) > m_flow_min or abs(crop_Outflow.m_flow) > m_flow_min then
-//              crop_Inflow.m_flow - crop_Outflow.m_flow
-//            else 0;
+            // Mass Balance: Prevent singularity issues when mass flow is near zero
+            //   der(m) = if abs(crop_Inflow.m_flow) > m_flow_min or abs(crop_Outflow.m_flow) > m_flow_min then
+            //              crop_Inflow.m_flow - crop_Outflow.m_flow
+            //            else 0;
           der(m) = crop_Inflow.m_flow - crop_Outflow.m_flow;
-// Energy Balance: Only consider significant inflows
-//   der(H) = if abs(crop_Inflow.m_flow) > m_flow_min then
-//              crop_Inflow.m_flow * cp * crop_Inflow.T
-//            else 0
-//            - crop_Outflow.m_flow * cp * T
-//            + Heat.Q_flow;
+            // Energy Balance: Only consider significant inflows
+            //   der(H) = if abs(crop_Inflow.m_flow) > m_flow_min then
+            //              crop_Inflow.m_flow * cp * crop_Inflow.T
+            //            else 0
+            //            - crop_Outflow.m_flow * cp * T
+            //            + Heat.Q_flow;
           der(H) = crop_Inflow.m_flow * cp * crop_Inflow.T
                  - crop_Outflow.m_flow * cp * T
                  + Heat.Q_flow;                             // Energy from inflow
-// Energy lost via outflow
-// External heat input
-// Temperature Calculation (Avoid division by zero)
+            // Energy lost via outflow
+            // External heat input
+            // Temperature Calculation (Avoid division by zero)
             T = H / (max(m, m_min) * cp);
-//H = m*cp*T;
-// Output Signals
+            //H = m*cp*T;
+            // Output Signals
             Sensor_T = T;
             Sensor_m = m;
-// Connect Outputs
+            // Connect Outputs
             crop_Outflow.T = T;
             crop_Outflow.m_flow = Flow_signal;
             crop_Outflow.H_flow = crop_Outflow.m_flow * cp * crop_Outflow.T;
@@ -1021,11 +811,11 @@ package Components
             Modelica.Blocks.Sources.RealExpression realExpression(y=a)
               annotation (Placement(transformation(extent={{-90,-102},{-70,-82}})));
           equation
-// Capture initial mass when transfer starts
+            // Capture initial mass when transfer starts
             when lessEqualThreshold.y then
               m_start = pre(m);
             end when;
-// Compute flow rate coefficient
+            // Compute flow rate coefficient
             a = 2 * m_start / (Transfer_Time^2);
 
             connect(T1, TempDiff.u1) annotation (Line(points={{-106,60},{-52,60},{-52,46},
@@ -1331,17 +1121,17 @@ package Components
             Modelica.Blocks.Logical.Switch switch2
               annotation (Placement(transformation(extent={{110,-64},{130,-44}})));
           equation
-// Capture initial mass when transfer starts
+            // Capture initial mass when transfer starts
             when lessEqualThreshold.y then
               m1_start =pre(m_T1);
             end when;
-// Compute flow rate coefficient
+            // Compute flow rate coefficient
             a1 = 2 * m1_start / (Transfer_Time^2);
 
             when lessEqualThreshold1.y then
               m2_start =pre(m_T2);
             end when;
-// Compute flow rate coefficient
+            // Compute flow rate coefficient
             a2 = 2 * m2_start / (Transfer_Time^2);
 
             connect(T1, TempDiff.u1) annotation (Line(points={{-108,88},{-54,88},{-54,74},
@@ -1485,7 +1275,7 @@ package Components
             parameter Real T_Threshold = 1 "Temperature difference threshold for activation";
             parameter Real Transfer_Time = 10 "Time to transfer all mass from Tank 1 to Tank 2";
 
-// Inputs
+            // Inputs
             Modelica.Blocks.Interfaces.RealInput T1 "Temperature of Tank 1"
               annotation (Placement(transformation(extent={{-130,80},{-90,120}})));
             Modelica.Blocks.Interfaces.RealInput T2 "Temperature of Tank 2"
@@ -1495,11 +1285,11 @@ package Components
             Modelica.Blocks.Interfaces.RealInput m_T2 "Mass in Tank 2"
               annotation (Placement(transformation(extent={{-130,-80},{-90,-40}})));
 
-// Output
+            // Output
             Modelica.Blocks.Interfaces.RealOutput FlowSignal "Output flow signal for transfer"
               annotation (Placement(transformation(extent={{160,20},{180,40}})));
 
-// Components
+            // Components
             Modelica.Blocks.Logical.LessEqualThreshold tempCondition(threshold = T_Threshold)
               annotation (Placement(transformation(extent={{-20,60},{0,80}})));
             Modelica.Blocks.Math.Add tempDifference(k2 = -1)
@@ -1521,26 +1311,26 @@ package Components
             Modelica.Blocks.Sources.Constant zeroFlow(k=0)
               annotation (Placement(transformation(extent={{140,10},{160,30}})));
 
-// Variables
+            // Variables
             discrete Real m1_start "Initial mass in Tank 1";
             discrete Real m2_start "Initial mass in Tank 2";
             Real a1 "Flow coefficient for Tank 1";
             Real a2 "Flow coefficient for Tank 2";
 
           equation
-// Capture initial mass for Tank 1
+            // Capture initial mass for Tank 1
             when tempCondition.y then
               m1_start = pre(m_T1);
             end when;
-// Compute flow coefficient for Tank 1
+            // Compute flow coefficient for Tank 1
             a1 = m1_start / Transfer_Time;
-// Capture initial mass for Tank 2
+            // Capture initial mass for Tank 2
             when massCondition.y then
               m2_start = pre(m_T2);
             end when;
-// Compute flow coefficient for Tank 2
+            // Compute flow coefficient for Tank 2
             a2 = m2_start / Transfer_Time;
-// Connections for Temperature-Based Transfer
+            // Connections for Temperature-Based Transfer
             connect(T1, tempDifference.u1) annotation (Line(points={{-110,100},{
                     -50,100},{-50,76},{-62,76}},                                                            color={0,0,127}));
             connect(T2, tempDifference.u2) annotation (Line(points={{-110,60},{
@@ -1551,21 +1341,21 @@ package Components
                     -10,70},{-10,40},{-19,40}},                                              color={255,0,255}));
             connect(flowRateT1.y, flowFromT1.u1) annotation (Line(points={{-19,40},
                     {20,40},{20,76},{38,76}},                                               color={0,0,127}));
-// Connections for Mass-Based Transfer
+            // Connections for Mass-Based Transfer
             connect(m_T2, massCondition.u) annotation (Line(points={{-110,-60},{
                     -66,-60},{-66,-50},{-22,-50}},                                        color={0,0,127}));
             connect(massCondition.y, flowRateT2.y) annotation (Line(points={{1,-50},
                     {-10,-50},{-10,-40},{-19,-40}},                                            color={255,0,255}));
             connect(flowRateT2.y, flowFromT2.u1) annotation (Line(points={{-19,-40},
                     {20,-40},{20,-44},{38,-44}},                                              color={0,0,127}));
-// Fallback Logic
+            // Fallback Logic
             connect(tempCondition.y, fallbackCondition.u1) annotation (Line(points={{1,70},{
                     10,70},{10,10},{18,10}},                                                         color={255,0,255}));
             connect(massCondition.y, fallbackCondition.u2) annotation (Line(points={{1,-50},
                     {18,-50},{18,2}},                                                                          color={255,0,255}));
             connect(fallbackCondition.y, flowSwitch.u2) annotation (Line(points={{41,10},
                     {98,10}},                                                                       color={255,0,255}));
-// Flow Selection and Output
+            // Flow Selection and Output
             connect(flowFromT1.y, flowSwitch.u1) annotation (Line(points={{61,70},
                     {98,70},{98,18}},                                                                 color={0,0,127}));
             connect(flowFromT2.y, flowSwitch.u3) annotation (Line(points={{61,-50},
@@ -1700,7 +1490,7 @@ package Components
               parameter Modelica.Units.SI.Temperature T_ref = 273.15
               "Minimum inflow rate to consider for dynamic enthalpy calculation";
 
-// States
+            // States
             Modelica.Units.SI.Mass m(min=0, start = m_Initial);
             Modelica.Units.SI.Enthalpy H(start=m_Initial*cp*(T_Initial - T_ref));
             Modelica.Units.SI.Temperature T(start = T_Initial) "Temperature [K]";
@@ -1728,10 +1518,10 @@ package Components
                    + Heat.Q_flow;
 
             T = T_ref + H/(max(m, m_min)*cp);
-// Output Signals
+            // Output Signals
             Sensor_T = T;
             Sensor_m = m;
-// Connect Outputs
+            // Connect Outputs
             crop_Outflow.T = T;
             crop_Outflow.m_flow = Flow_signal;
             crop_Outflow.H_flow = crop_Outflow.m_flow*cp*(T - T_ref);
@@ -2008,11 +1798,11 @@ package Components
               "Connector of Boolean output signal"
               annotation (Placement(transformation(extent={{96,52},{116,72}})));
           equation
-// Capture initial mass when transfer starts
+            // Capture initial mass when transfer starts
             when lessEqualThreshold.y then
               m_start =pre(m1);
             end when;
-// Compute flow rate coefficient
+            // Compute flow rate coefficient
             a = 2 * m_start / (Transfer_Time^2);
 
             connect(T1, TempDiff.u1) annotation (Line(points={{-106,60},{-82,60},
@@ -2089,14 +1879,222 @@ package Components
                   rotation=90,
                   origin={-2,-106})));
           equation
-// conditional assignment for mass flow
+            // conditional assignment for mass flow
             crop_Outflow.m_flow = if u then 0 else Flow_signal;
-// unconditional assignments
+            // unconditional assignments
             crop_Outflow.T      = crop_Inflow.T;
             crop_Outflow.H_flow = crop_Inflow.H_flow;
             annotation (Icon(coordinateSystem(preserveAspectRatio=false)), Diagram(
                   coordinateSystem(preserveAspectRatio=false)));
           end m_outFlow_Check;
+
+          model Tank_enthalpy_TCR
+          // Parameters
+            parameter Modelica.Units.SI.Mass m_Initial=20;
+            parameter Modelica.Units.SI.Temperature T_Initial = 25+273.15 "Initial temperature [degC]";
+            parameter Modelica.Units.SI.SpecificHeatCapacity cp = 3500 "Specific heat capacity (assumed constant)";
+            parameter Modelica.Units.SI.Mass m_min = 0.001 "Minimum mass for stability [kg]";
+              parameter Modelica.Units.SI.Temperature T_ref = 273.15
+              "Minimum inflow rate to consider for dynamic enthalpy calculation";
+            parameter Modelica.Units.SI.ThermalConductance UA = 100;
+            parameter Real Ts = 100;
+
+            Modelica.Units.SI.Mass m(min=0, start = m_Initial, fixed=true);
+
+            // States
+            Modelica.Units.SI.Enthalpy H(start=m_Initial*cp*(T_Initial - T_ref), fixed=true);
+            Modelica.Units.SI.Temperature T(start = T_Initial, fixed=true) "Temperature [K]";
+
+            Sensible.Connectors.Crop_Inflow crop_Inflow annotation (Placement(
+                  transformation(extent={{-104,60},{-84,80}})));
+            Sensible.Connectors.Crop_Outflow crop_Outflow
+              annotation (Placement(transformation(extent={{96,60},{116,80}})));
+            Modelica.Blocks.Interfaces.RealInput Flow_signal annotation (Placement(
+                  transformation(extent={{-114,-64},{-92,-42}}), iconTransformation(
+                    extent={{-114,-64},{-92,-42}})));
+            Modelica.Blocks.Interfaces.RealOutput Sensor_m
+              annotation (Placement(transformation(extent={{96,-34},{116,-14}})));
+            Modelica.Blocks.Interfaces.RealOutput Sensor_T
+              annotation (Placement(transformation(extent={{96,-58},{116,-38}})));
+
+            Modelica.Blocks.Interfaces.RealInput T_CR annotation (Placement(
+                  transformation(extent={{-116,24},{-94,46}}), iconTransformation(extent={{-116,14},
+                      {-94,36}})));
+            Modelica.Blocks.Interfaces.RealOutput Q_Total
+              annotation (Placement(transformation(extent={{96,20},{116,40}})));
+
+          discrete Real T_CR_prev(start = 0, fixed=true);
+          equation
+          when sample(0, Ts) then
+              T_CR_prev = T_CR;
+            end when;
+
+            der(m) = crop_Inflow.m_flow - crop_Outflow.m_flow;
+
+            der(H) = crop_Inflow.m_flow*cp*(crop_Inflow.T - T_ref)
+                   - crop_Outflow.m_flow*cp*(T - T_ref)
+                   + UA * (T_CR_prev-T);
+
+            T = T_ref + H/(max(m, m_min)*cp);
+            // Output Signals
+            Sensor_T = T;
+            Sensor_m = m;
+            // Connect Outputs
+            crop_Outflow.T = T;
+            crop_Outflow.m_flow = Flow_signal;
+            crop_Outflow.H_flow = crop_Outflow.m_flow*cp*(T - T_ref);
+            Q_Total=-1* UA * (T_CR-T);
+            annotation (Icon(coordinateSystem(preserveAspectRatio=false), graphics={
+                    Bitmap(
+                    extent={{-102,-96},{104,98}},
+                    imageSource="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",
+                    fileName=
+                        "modelica://AGRI_COOL/AGRICOOL/Icons/Crop_tank_Icon.png")}),
+                Diagram(coordinateSystem(preserveAspectRatio=false)));
+          end Tank_enthalpy_TCR;
+
+          model Product_Model_T_CR
+            CropSourcee cropSourcee(cp=cp, T(displayUnit="degC") = T)
+              annotation (Placement(transformation(extent={{-62,40},{-42,60}})));
+            Tank_enthalpy_TCR
+                 tank_enthalpy_TCR(
+              m_Initial=m_Initial_T1,
+              T_Initial=T_Initial_T1,
+              cp=cp_T1,
+              Ts=Ts)
+              annotation (Placement(transformation(extent={{-26,22},{-6,42}})));
+            Tank_enthalpy_TCR
+                 tank_enthalpy_TCR1(
+              m_Initial=m_Initial_T2,
+              T_Initial=T_Initial_T2,
+              cp=cp_T2,
+              Ts=Ts)
+              annotation (Placement(transformation(extent={{26,4},{46,24}})));
+            Controller2_1
+                        controller2_1_1(
+                                    T_Threshold=T_Threshold, Transfer_Time=
+                  Transfer_Time)
+              annotation (Placement(transformation(extent={{-8,-18},{12,2}})));
+            Modelica.Blocks.Interfaces.RealInput m_In
+              annotation (Placement(transformation(extent={{-126,30},{-86,70}})));
+            Modelica.Blocks.Interfaces.RealInput m_Out
+              annotation (Placement(transformation(extent={{132,-80},{92,-40}})));
+            parameter Modelica.Units.SI.ThermalConductance G_tank1=200
+              "Constant thermal conductance of material";
+            parameter Modelica.Units.SI.ThermalConductance G_Tank2=100
+              "Constant thermal conductance of material";
+            parameter Modelica.Units.SI.Mass m_Initial_T1=10
+              annotation (Dialog(group="Tank1"));
+            parameter Modelica.Units.SI.Temperature T_Initial_T1=288.15
+              "Initial temperature [degC]" annotation (Dialog(group="Tank 1"));
+            parameter Modelica.Units.SI.Mass m_Initial_T2=50
+              annotation (Dialog(group="Tank2"));
+            parameter Modelica.Units.SI.Temperature T_Initial_T2=283.15
+              "Initial temperature [degC]" annotation (Dialog(group="Tank2"));
+            parameter Real T_Threshold=1
+              "Temperature difference threshold for activation";
+            parameter Real Transfer_Time=1800
+              "the time in which all the mass from tank 1 transfers to tank 2";
+            Modelica.Blocks.Sources.RealExpression realExpression(y=
+                  tank_enthalpy_TCR.m + tank_enthalpy_TCR1.m)
+              annotation (Placement(transformation(extent={{56,54},{76,74}})));
+            Modelica.Blocks.Interfaces.RealOutput m_total "Value of Real output"
+              annotation (Placement(transformation(extent={{98,54},{118,74}})));
+            parameter Modelica.Units.SI.Temperature T(displayUnit="degC") =
+              303.15 "Temperature [K]";
+            parameter Real cp=3500 "Specific heat capacity [J/(kg.K)]";
+            parameter Modelica.Units.SI.SpecificHeatCapacity cp_T1=3500
+              "Specific heat capacity (assumed constant)"
+              annotation (Dialog(group="Tank1"));
+            parameter Modelica.Units.SI.SpecificHeatCapacity cp_T2=3500
+              "Specific heat capacity (assumed constant)"
+              annotation (Dialog(group="Tank2"));
+            m_check m_check1 annotation (Placement(transformation(extent={{50,-70},
+                      {28,-50}})));
+            m_outFlow_Check m_outFlow_Check1
+              annotation (Placement(transformation(extent={{0,36},{20,56}})));
+            Modelica.Blocks.Interfaces.RealInput T_CR annotation (Placement(
+                  transformation(extent={{-128,-26},{-88,14}})));
+            Modelica.Blocks.Math.Add add
+              annotation (Placement(transformation(extent={{68,32},{88,52}})));
+            Modelica.Blocks.Interfaces.RealOutput Q_Product_Total
+              "Connector of Real output signal" annotation (Placement(
+                  transformation(extent={{100,-14},{120,6}})));
+            parameter Real Ts=100;
+          equation
+            connect(cropSourcee.crop_Outflow, tank_enthalpy_TCR.crop_Inflow)
+              annotation (Line(
+                points={{-41,50},{-40,50},{-40,39},{-25.4,39}},
+                color={0,140,72},
+                smooth=Smooth.Bezier,
+                thickness=0.5));
+            connect(tank_enthalpy_TCR.Sensor_T, controller2_1_1.T1) annotation (
+               Line(points={{-5.4,27.2},{4,27.2},{4,8},{-26,8},{-26,-2},{-8.6,-2}},
+                  color={0,0,127}));
+            connect(tank_enthalpy_TCR1.Sensor_T, controller2_1_1.T2)
+              annotation (Line(points={{46.6,9.2},{66,9.2},{66,-36},{-26,-36},{
+                    -26,-6.2},{-8.6,-6.2}}, color={0,0,127}));
+            connect(controller2_1_1.FlowSignal, tank_enthalpy_TCR.Flow_signal)
+              annotation (Line(points={{12.6,-10.2},{14,-10.2},{14,20},{-26.3,
+                    20},{-26.3,26.7}}, color={0,0,127}));
+            connect(cropSourcee.m, m_In) annotation (Line(points={{-62.1,49.9},{
+                    -106,49.9},{-106,50}}, color={0,0,127}));
+            connect(realExpression.y, m_total)
+              annotation (Line(points={{77,64},{108,64}}, color={0,0,127}));
+            connect(m_Out, m_check1.m_out) annotation (Line(points={{112,-60},{
+                    62,-60},{62,-53.2},{50.88,-53.2}}, color={0,0,127}));
+            connect(tank_enthalpy_TCR1.Sensor_m, m_check1.m2) annotation (Line(
+                  points={{46.6,11.6},{62,11.6},{62,12},{76,12},{76,-68},{50.66,
+                    -68},{50.66,-66.8}}, color={0,0,127}));
+            connect(tank_enthalpy_TCR.Sensor_m, m_check1.m1) annotation (Line(
+                  points={{-5.4,29.6},{28,29.6},{28,30},{66,30},{66,-64},{50.88,
+                    -64},{50.88,-62.8}}, color={0,0,127}));
+            connect(m_check1.m2_FlowSignal, tank_enthalpy_TCR1.Flow_signal)
+              annotation (Line(points={{27.34,-56},{26,-56},{26,0},{22,0},{22,
+                    8.7},{25.7,8.7}}, color={0,0,127}));
+            connect(tank_enthalpy_TCR.Sensor_m, controller2_1_1.m1) annotation (
+               Line(points={{-5.4,29.6},{-8.8,29.6},{-8.8,-14}}, color={0,0,127}));
+            connect(m_check1.m1_FlowSignal, controller2_1_1.m_out) annotation (
+                Line(points={{27.34,-64},{18,-64},{18,2},{16,2},{16,3},{3.6,3}},
+                  color={0,0,127}));
+            connect(tank_enthalpy_TCR.crop_Outflow, m_outFlow_Check1.crop_Inflow)
+              annotation (Line(
+                points={{-5.4,39},{-5.4,40},{0.6,40},{0.6,46}},
+                color={0,140,72},
+                thickness=1));
+            connect(m_outFlow_Check1.crop_Outflow, tank_enthalpy_TCR1.crop_Inflow)
+              annotation (Line(
+                points={{20.6,46},{28,46},{28,28},{22,28},{22,21},{26.6,21}},
+                color={0,140,72},
+                thickness=1));
+            connect(controller2_1_1.Tank_Emptying_Signal, m_outFlow_Check1.u)
+              annotation (Line(points={{12.6,-1.8},{12.6,56.6},{10,56.6}},
+                  color={255,0,255}));
+            connect(controller2_1_1.FlowSignal, m_outFlow_Check1.Flow_signal)
+              annotation (Line(points={{12.6,-10.2},{9.8,-10.2},{9.8,35.4}},
+                  color={0,0,127}));
+            connect(T_CR, tank_enthalpy_TCR.T_CR) annotation (Line(points={{
+                    -108,-6},{-32,-6},{-32,34.5},{-26.5,34.5}}, color={0,0,127}));
+            connect(T_CR, tank_enthalpy_TCR1.T_CR) annotation (Line(points={{
+                    -108,-6},{-28,-6},{-28,-8},{-16,-8},{-16,-22},{20,-22},{20,
+                    16.5},{25.5,16.5}}, color={0,0,127}));
+            connect(tank_enthalpy_TCR1.Q_Total, add.u2) annotation (Line(points
+                  ={{46.6,17},{50,17},{50,36},{66,36}}, color={0,0,127}));
+            connect(tank_enthalpy_TCR.Q_Total, add.u1) annotation (Line(points=
+                    {{-5.4,35},{-5.4,64},{50,64},{50,48},{66,48}}, color={0,0,
+                    127}));
+            connect(add.y, Q_Product_Total) annotation (Line(points={{89,42},{
+                    96,42},{96,-4},{110,-4}}, color={0,0,127}));
+            annotation (Icon(coordinateSystem(preserveAspectRatio=false),
+                  graphics={Bitmap(
+                    extent={{-100,-102},{98,100}},
+                    imageSource=
+                        "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",
+                    fileName=
+                        "modelica://AGRI_COOL/AGRICOOL/Icons/CropSource_Icon.png")}),
+                Diagram(coordinateSystem(preserveAspectRatio=false)),
+              experiment(StopTime=172800, __Dymola_Algorithm="Dassl"));
+          end Product_Model_T_CR;
         end Components;
       end Sensible;
 
@@ -2113,8 +2111,8 @@ package Components
           parameter Real b = 0.076 "Respiration parameter (b)";
         equation
           Q_Respiration = 0.001 * m_pr * a * exp(b * (T_in_K - 273.15));
-// Parameters
-// Respiration load equation
+          // Parameters
+          // Respiration load equation
           annotation (Icon(coordinateSystem(preserveAspectRatio=false),
                 graphics={
                 Polygon(
@@ -2167,16 +2165,16 @@ package Components
         parameter Real lighting_power_density(unit="W/m2") = 6 "Lighting power density";
         parameter Real floor_area(unit="m2") = 50 "Floor area of the cold room";
 
-// Inputs
+        // Inputs
         Modelica.Blocks.Interfaces.RealInput lights_on "Lights on (1 = on, 0 = off)"
           annotation (Placement(transformation(extent={{-130,50},{-90,90}})));
 
-// Output
+        // Output
         Modelica.Blocks.Interfaces.RealOutput Q_Lighting "Lighting cooling load (W)"
           annotation (Placement(transformation(extent={{94,-20},{128,14}})));
 
       equation
-// Lighting cooling load calculation
+        // Lighting cooling load calculation
         Q_Lighting = lighting_power_density * floor_area * lights_on;
 
         annotation (
@@ -2455,6 +2453,137 @@ package Components
             Diagram(coordinateSystem(preserveAspectRatio=false, extent={{-100,
                   -100},{140,100}})));
       end Loads_enhanced;
+
+      model Loads_Prescribed
+        Modelica.Blocks.Interfaces.RealInput T_in_K1          "Indoor temperature"
+          annotation (Placement(transformation(extent={{-128,72},{-88,112}}),
+              iconTransformation(extent={{-128,72},{-88,112}})));
+        People.People people(n=n)
+          annotation (Placement(transformation(extent={{-16,40},{14,74}})));
+        Modelica.Blocks.Interfaces.RealInput t_people1
+          "Connector of Real input signal 2"
+          annotation (Placement(transformation(extent={{-126,-18},{-86,22}})));
+        Product_Load.Sensible.Components.Product_Model_T_CR
+                                                       product_Model_T_CR(
+          G_tank1=G_tank1,
+          G_Tank2=G_Tank2,
+          m_Initial_T1=m_Initial_T1,
+          m_Initial_T2=m_Initial_T2,
+          T_Initial_T2=T_Initial_T2,
+          T_Threshold=T_Threshold,
+          Transfer_Time=Transfer_Time,
+          T=T_source,
+          cp=cp,
+          cp_T1=cp_T1,
+          cp_T2=cp_T2,
+          Ts=500)
+          annotation (Placement(transformation(extent={{4,-64},{24,-44}})));
+        Product_Load.Respiration.Respiration respiration(a=a, b=b)
+          annotation (Placement(transformation(extent={{-12,12},{8,32}})));
+        Lighting.Lighting lighting(lighting_power_density=
+              lighting_power_density, floor_area=floor_area)
+          annotation (Placement(transformation(extent={{-16,-24},{4,-4}})));
+        Modelica.Blocks.Interfaces.RealInput m_In1
+          annotation (Placement(transformation(extent={{-126,-58},{-86,-18}})));
+        Modelica.Blocks.Interfaces.RealInput m_Out1 annotation (Placement(
+              transformation(extent={{-130,-100},{-90,-60}})));
+        Modelica.Blocks.Math.Sum sum1(nin=3)
+          annotation (Placement(transformation(extent={{60,-2},{80,18}})));
+        Modelica.Thermal.HeatTransfer.Sources.PrescribedHeatFlow
+          prescribedHeatFlow
+          annotation (Placement(transformation(extent={{94,-2},{114,18}})));
+        Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_b port1
+          annotation (Placement(transformation(extent={{132,-2},{152,18}})));
+        parameter Real n=2 "number of people working in cold room."
+          annotation (Dialog(tab="people"));
+        parameter Real a=19.092 "Respiration parameter (a)"
+          annotation (Dialog(tab="Product Respiration"));
+        parameter Real b=0.076 "Respiration parameter (b)"
+          annotation (Dialog(tab="Product Respiration"));
+        parameter Real lighting_power_density=6 "Lighting power density"
+          annotation (Dialog(tab="Lighting"));
+        parameter Real floor_area=50 "Floor area of the cold room"
+          annotation (Dialog(tab="Lighting"));
+        parameter Modelica.Units.SI.ThermalConductance G_tank1=200
+          "Constant thermal conductance of material"
+          annotation (Dialog(tab="Product Sensible Load", group="Tank 1"));
+        parameter Modelica.Units.SI.Mass m_Initial_T1=10
+          annotation (Dialog(tab="Product Sensible Load", group="Tank 1"));
+        parameter Modelica.Units.SI.Temperature T_Initial_T1=288.15
+          "Initial temperature [degC]"
+          annotation (Dialog(tab="Product Sensible Load", group="Tank 1"));
+        parameter Modelica.Units.SI.Mass m_Initial_T2=50
+          annotation (Dialog(tab="Product Sensible Load", group="Tank 2"));
+        parameter Modelica.Units.SI.Temperature T_Initial_T2=283.15
+          "Initial temperature [degC]"
+          annotation (Dialog(tab="Product Sensible Load", group="Tank 2"));
+        parameter Modelica.Units.SI.ThermalConductance G_Tank2=100
+          "Constant thermal conductance of material"
+          annotation (Dialog(tab="Product Sensible Load", group="Tank 2"));
+        parameter Real T_Threshold=1
+          "Temperature difference threshold for activation"
+          annotation (Dialog(tab="Product Sensible Load", group="Parameters"));
+        parameter Real Transfer_Time=1800
+          "the time in which all the mass from tank 1 transfers to tank 2"
+          annotation (Dialog(tab="Product Sensible Load", group="Parameters"));
+        parameter Modelica.Units.SI.Temperature T_source=303.15
+          "Temperature [K]"
+          annotation (Dialog(tab="Product Sensible Load", group="Parameters"));
+        parameter Real cp=3500 "Specific heat capacity [J/(kg.K)]"
+          annotation (Dialog(tab="Product Sensible Load", group="Parameters"));
+        parameter Modelica.Units.SI.SpecificHeatCapacity cp_T1=3500
+          "Specific heat capacity (assumed constant)"
+          annotation (Dialog(tab="Product Sensible Load", group="Tank 1"));
+        parameter Modelica.Units.SI.SpecificHeatCapacity cp_T2=3500
+          "Specific heat capacity (assumed constant)"
+          annotation (Dialog(tab="Product Sensible Load", group="Tank 2"));
+        Modelica.Blocks.Interfaces.RealOutput Q_people1
+          "Connector of Real output signal"
+          annotation (Placement(transformation(extent={{134,48},{154,68}})));
+      equation
+        connect(people.T_in_K, T_in_K1) annotation (Line(points={{-17.5,67.2},{-82,67.2},
+                {-82,92},{-108,92}},                             color={0,0,127}));
+        connect(people.t_people, t_people1) annotation (Line(points={{-17.2,46.8},{-74,
+                46.8},{-74,0},{-82,0},{-82,2},{-106,2}},color={0,0,127}));
+        connect(respiration.T_in_K, T_in_K1) annotation (Line(points={{-13,29},{-78,29},
+                {-78,68},{-82,68},{-82,92},{-108,92}},
+                                              color={0,0,127}));
+        connect(product_Model_T_CR.m_total, respiration.m_pr) annotation (Line(
+              points={{24.8,-47.6},{28,-47.6},{28,8},{-12.8,8},{-12.8,16.2}},
+              color={0,0,127}));
+        connect(lighting.lights_on, t_people1) annotation (Line(points={{-17,-7},{-18,
+                -7},{-18,0},{-82,0},{-82,2},{-106,2}},
+                                            color={0,0,127}));
+        connect(product_Model_T_CR.m_In, m_In1) annotation (Line(points={{3.4,
+                -49},{3.4,-50},{-80,-50},{-80,-38},{-106,-38}}, color={0,0,127}));
+        connect(product_Model_T_CR.m_Out, m_Out1) annotation (Line(points={{
+                25.2,-60},{25.2,-80},{-110,-80}}, color={0,0,127}));
+        connect(sum1.y, prescribedHeatFlow.Q_flow)
+          annotation (Line(points={{81,8},{94,8}}, color={0,0,127}));
+        connect(prescribedHeatFlow.port, port1)
+          annotation (Line(points={{114,8},{142,8}}, color={191,0,0}));
+        connect(people.Q_people, Q_people1) annotation (Line(points={{17.9,57},
+                {78.95,57},{78.95,58},{144,58}}, color={0,0,127}));
+        connect(respiration.Q_Respiration, sum1.u[1]) annotation (Line(points={{9.1,
+                21.7},{50,21.7},{50,7.33333},{58,7.33333}},
+                                                         color={0,0,127}));
+        connect(lighting.Q_Lighting, sum1.u[2]) annotation (Line(points={{5.1,
+                -14.3},{48,-14.3},{48,8},{58,8}},     color={0,0,127}));
+        connect(T_in_K1, product_Model_T_CR.T_CR) annotation (Line(points={{
+                -108,92},{-82,92},{-82,68},{-78,68},{-78,30},{-26,30},{-26,
+                -54.6},{3.2,-54.6}}, color={0,0,127}));
+        connect(product_Model_T_CR.Q_Product_Total, sum1.u[3]) annotation (Line(
+              points={{25,-54.4},{48,-54.4},{48,8.66667},{58,8.66667}}, color={
+                0,0,127}));
+        annotation (Icon(coordinateSystem(preserveAspectRatio=false, extent={{
+                  -100,-100},{140,100}}), graphics={Bitmap(
+                extent={{-80,-100},{120,100}},
+                imageSource=
+                    "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",
+                fileName="modelica://AGRI_COOL/AGRICOOL/Icons/cooling_loads.png")}),
+            Diagram(coordinateSystem(preserveAspectRatio=false, extent={{-100,
+                  -100},{140,100}})));
+      end Loads_Prescribed;
     end Integrated;
   end Cooling_Loads;
 
@@ -2519,7 +2648,7 @@ package Components
            25000 "Load side pressure drop"
         annotation (Dialog(group="Nominal condition"));
 
-//////
+      //////
      import hexConfiguration=AGRI_COOL.Buildings.Fluid.Types.HeatExchangerConfiguration;
        final parameter hexConfiguration hexConCoo=hexConfiguration.CounterFlow
         "Cooling heat exchanger configuration";
@@ -2566,7 +2695,7 @@ package Components
         final allowFlowReversal1=allowFlowReversal,
         final allowFlowReversal2=allowFlowReversalLoa,
         final w_a2_nominal=0.01,
-        energyDynamics=Modelica.Fluid.Types.Dynamics.DynamicFreeInitial)
+        energyDynamics=Modelica.Fluid.Types.Dynamics.FixedInitial)
         "Cooling coil"
         annotation (Placement(transformation(extent={{-38,-44},{-18,-64}})));
         //final Q_flow_nominal=3*QCo_flow_nominal,
@@ -2665,7 +2794,7 @@ package Components
       Modelica.Blocks.Logical.Switch DayNightSw annotation (Placement(
             transformation(extent={{10,-10},{-10,10}}, origin={112,26})));
       Modelica.Blocks.Sources.Pulse nightFanPulse(
-        amplitude=0.25,
+        amplitude=0.5,
         width=50,
         period(displayUnit="h") = 3600,
         offset=0,
@@ -2681,6 +2810,13 @@ package Components
               extent={{240,6},{200,46}})));
       Modelica.Blocks.Math.RealToBoolean PVsignal
         annotation (Placement(transformation(extent={{184,16},{164,36}})));
+      Modelica.Blocks.Sources.RealExpression realExpression(y=hexWetNtu.Q1_flow)
+        annotation (Placement(transformation(extent={{-52,-132},{-32,-112}})));
+      Modelica.Blocks.Continuous.Integrator integrator
+        annotation (Placement(transformation(extent={{32,-132},{52,-112}})));
+      Modelica.Blocks.Interfaces.RealOutput Q_total
+        "Connector of Real output signal"
+        annotation (Placement(transformation(extent={{158,-134},{178,-114}})));
     equation
       connect(resLoa.port_b,fan. port_a)
         annotation (Line(points={{116,-20},{90,-20},{90,-18},{84,-18}},
@@ -2753,6 +2889,12 @@ package Components
         annotation (Line(points={{220,26},{186,26}}, color={0,0,127}));
       connect(PVsignal.y, DayNightSw.u2)
         annotation (Line(points={{163,26},{124,26}}, color={255,0,255}));
+      connect(realExpression.y, integrator.u)
+        annotation (Line(points={{-31,-122},{30,-122}}, color={0,0,127}));
+      connect(integrator.y, Q_total) annotation (Line(points={{53,-122},{107.5,
+              -122},{107.5,-124},{168,-124}}, color={0,0,127}));
+      connect(Q_total, Q_total)
+        annotation (Line(points={{168,-124},{168,-124}}, color={0,0,127}));
       annotation (Icon(coordinateSystem(extent={{-160,-140},{160,140}}),
                        graphics={
             Ellipse(
@@ -2807,7 +2949,7 @@ package Components
 
     equation
       dT =T_room - T_set;
-// Feed delta T into hysteresis thresholds
+      // Feed delta T into hysteresis thresholds
       h25.u = dT;
       h50.u = dT;
       h75.u = dT;
@@ -2817,7 +2959,7 @@ package Components
       b50 = h50.y;
       b75 = h75.y;
       b100 = h100.y;
-// Discrete fan output selection
+      // Discrete fan output selection
       fanSpeed = if b100 then 1.0
                  else if b75 then 0.75
                  else if b50 then 0.5
@@ -2828,8 +2970,8 @@ package Components
 
     model DiscreteFanWithDeadbandDelay
       parameter Real DB = 0.25 "Deadband value";
-      parameter Real updatePeriod = 60 "Update period in seconds"; 
-// 1 minute default
+      parameter Real updatePeriod = 60 "Update period in seconds";
+      // 1 minute default
       Modelica.Blocks.Interfaces.RealInput T_set "Temperature setpoint"
         annotation (Placement(transformation(extent={{-158,10},{-118,52}})));
       Modelica.Blocks.Interfaces.RealInput T_room "Room temperature"
@@ -2847,12 +2989,12 @@ package Components
       Boolean b25, b50, b75, b100;
       Real rawFanSpeed "Instantaneous fan speed from hysteresis logic";
 
-// Hold last updated value
+      // Hold last updated value
       discrete Real heldFanSpeed(start=0);
 
     equation
       dT = T_room - T_set+0.5;
-// Feed delta T into hysteresis thresholds
+      // Feed delta T into hysteresis thresholds
       h25.u = dT;
       h50.u = dT;
       h75.u = dT;
@@ -2862,13 +3004,13 @@ package Components
       b50 = h50.y;
       b75 = h75.y;
       b100 = h100.y;
-// Discrete fan output selection (instantaneous)
+      // Discrete fan output selection (instantaneous)
       rawFanSpeed = if b100 then 1.0
                     else if b75 then 0.75
                     else if b50 then 0.5
                     else if b25 then 0.25
                     else 0.0;
-// Update only every updatePeriod seconds
+      // Update only every updatePeriod seconds
       when sample(0, updatePeriod) then
         heldFanSpeed = rawFanSpeed;
       end when;
@@ -2901,7 +3043,7 @@ package Components
         displayUnit="degC") = T_aLoaCo_nominal + 3
         "Load side outlet temperature at nominal conditions in cooling mode"
         annotation (Dialog(group="Nominal condition"));
-  //QCoUni_flow_nominal/(T_bLoaCo_nominal - T_aLoaCo_nominal)/
+      //QCoUni_flow_nominal/(T_bLoaCo_nominal - T_aLoaCo_nominal)/
       //Medium2.specificHeatCapacityCp(Medium2.setState_pTX(Medium2.p_default,T_aLoaCo_nominal))
       parameter Modelica.Units.SI.MassFlowRate mLoaCo_flow_nominal(min = 0) = 2500/1005/(T_bLoaCo_nominal - T_aLoaCo_nominal) "Load side mass flow rate at nominal conditions" annotation(
         Dialog(group = "Nominal condition"));
@@ -2983,7 +3125,9 @@ package Components
         nPorts=1)
         "cooling water supply"
         annotation (Placement(transformation(extent={{-10,-10},{10,10}},rotation=0,origin={-8,-104})));
-  AGRI_COOL.Buildings.Controls.OBC.CDL.Reals.Sources.Constant TSet1(k = 1, y(displayUnit = "degC", final unit = "K")) "Temperature set point" annotation(
+      AGRI_COOL.Buildings.Controls.OBC.CDL.Reals.Sources.Constant TSet1(k=1, y(
+            displayUnit="degC", final unit="K")) "Temperature set point"
+        annotation (
         Placement(transformation(origin = {278, 44}, extent = {{-114, -22}, {-90, 2}})));
     equation
 
@@ -3035,9 +3179,11 @@ package Components
         annotation (Line(points={{2,-104},{62,-104},{62,-19.9286},{68.2375,
               -19.9286}},
             color={0,127,255}));
-  connect(TSet1.y, baseClass_DiscControl_fanCoil1.PVDayNight) annotation(
+      connect(
+          TSet1.y, baseClass_DiscControl_fanCoil1.PVDayNight) annotation (
         Line(points = {{190, 34}, {106, 34}, {106, 46}}, color = {0, 0, 127}));
-  connect(baseClass_DiscControl_fanCoil.PVDayNight, TSet1.y) annotation(
+      connect(
+          baseClass_DiscControl_fanCoil.PVDayNight, TSet1.y) annotation (
         Line(points = {{114, -6}, {190, -6}, {190, 34}}, color = {0, 0, 127}));
       annotation (Icon(coordinateSystem(preserveAspectRatio=false)), Diagram(
             coordinateSystem(preserveAspectRatio=false)),
@@ -3585,7 +3731,7 @@ package Components
            25000 "Load side pressure drop"
         annotation (Dialog(group="Nominal condition"));
 
-//////
+      //////
      import hexConfiguration=AGRI_COOL.Buildings.Fluid.Types.HeatExchangerConfiguration;
        final parameter hexConfiguration hexConCoo=hexConfiguration.CounterFlow
         "Cooling heat exchanger configuration";
@@ -3632,7 +3778,7 @@ package Components
         final allowFlowReversal1=allowFlowReversal,
         final allowFlowReversal2=allowFlowReversalLoa,
         final w_a2_nominal=0.01,
-        energyDynamics=Modelica.Fluid.Types.Dynamics.DynamicFreeInitial)
+        energyDynamics=Modelica.Fluid.Types.Dynamics.FixedInitial)
         "Cooling coil"
         annotation (Placement(transformation(extent={{-38,-44},{-18,-64}})));
         //final Q_flow_nominal=3*QCo_flow_nominal,
@@ -3735,6 +3881,13 @@ package Components
               extent={{240,6},{200,46}})));
       Modelica.Blocks.Math.RealToBoolean PVsignal
         annotation (Placement(transformation(extent={{184,16},{164,36}})));
+      Modelica.Blocks.Sources.RealExpression realExpression(y=hexWetNtu.Q1_flow)
+        annotation (Placement(transformation(extent={{-56,-130},{-36,-110}})));
+      Modelica.Blocks.Continuous.Integrator integrator
+        annotation (Placement(transformation(extent={{28,-130},{48,-110}})));
+      Modelica.Blocks.Interfaces.RealOutput Q_total
+        "Connector of Real output signal"
+        annotation (Placement(transformation(extent={{154,-132},{174,-112}})));
     equation
       connect(resLoa.port_b,fan. port_a)
         annotation (Line(points={{116,-20},{90,-20},{90,-18},{84,-18}},
@@ -3793,6 +3946,12 @@ package Components
         annotation (Line(points={{220,26},{186,26}}, color={0,0,127}));
       connect(discreteFanWithDeadbandDelay.fanSpeed, fan.y) annotation (Line(points
             ={{88.24,55.26},{96,55.26},{96,4},{74,4},{74,-6}}, color={0,0,127}));
+      connect(realExpression.y, integrator.u)
+        annotation (Line(points={{-35,-120},{26,-120}}, color={0,0,127}));
+      connect(integrator.y, Q_total) annotation (Line(points={{49,-120},{103.5,
+              -120},{103.5,-122},{164,-122}}, color={0,0,127}));
+      connect(Q_total, Q_total)
+        annotation (Line(points={{164,-122},{164,-122}}, color={0,0,127}));
       annotation (Icon(coordinateSystem(extent={{-160,-140},{160,140}}),
                        graphics={
             Ellipse(
@@ -3842,7 +4001,7 @@ package Components
             extends Modelica.Icons.Record;
             import      Modelica.Units.SI;
 
-// Constant chemical values assumed
+            // Constant chemical values assumed
             parameter SI.Diameter d_i "Inner pipe diameter";
             parameter SI.Diameter d_o "Outer pipe diameter";
             parameter SI.Density d "Density of pipe material";
@@ -4030,7 +4189,7 @@ package Components
             parameter Modelica.Units.SI.SpecificHeatCapacity cWall "Heat capacity of wall";
             parameter Modelica.Units.SI.Length roughness "Inner roughness of storage wall";
 
-// Heat exchanger Pipes
+            // Heat exchanger Pipes
             parameter DataBase.Pipes.PipeBaseDataDefinition pipeHC1
             "Type of Pipe for HR1";
             parameter DataBase.Pipes.PipeBaseDataDefinition pipeHC2
@@ -4296,12 +4455,12 @@ First implementation for
             final parameter Boolean from_dp=true "Used to satisfy replaceable models";
           equation
             dp=0;
-// Isenthalpic state transformation (no storage and no loss of energy)
+            // Isenthalpic state transformation (no storage and no loss of energy)
             port_a.h_outflow = if allowFlowReversal then inStream(port_b.h_outflow) else Medium.h_default;
             port_b.h_outflow = inStream(port_a.h_outflow);
-// Mass balance (no storage)
+            // Mass balance (no storage)
             port_a.m_flow + port_b.m_flow = 0;
-// Transport of substances
+            // Transport of substances
             port_a.Xi_outflow = if allowFlowReversal then inStream(port_b.Xi_outflow) else Medium.X_default[1:Medium.nXi];
             port_b.Xi_outflow = inStream(port_a.Xi_outflow);
 
@@ -4557,7 +4716,7 @@ cooling systems.<br/>
            assert(m_flow_nominal_pos > 0, "m_flow_nominal_pos must be non-zero. Check parameters.");
           equation
             // Pressure drop calculation
-if computeFlowResistance then
+            if computeFlowResistance then
               if linearized then
                 if from_dp then
                   m_flow = dp*coeff;
@@ -4853,9 +5012,9 @@ First implementation.
             initial equation
               x = 0;
             equation
-// No pressure drop
+              // No pressure drop
               port_a.p = port_b.p;
-// Mass balance (no storage)
+              // Mass balance (no storage)
               port_a.m_flow + port_b.m_flow = 0;
 
               der(x) = v;
@@ -4868,7 +5027,7 @@ First implementation.
                 v >= 0,
                 {0.0, 1.0},
                 {h_ini_in, h_ini_out});
-// Transport of substances
+              // Transport of substances
               for i in 1:Medium.nXi loop
               (port_a.Xi_outflow[i], port_b.Xi_outflow[i]) = spatialDistribution(
                 Xi_inflow_a[i],
@@ -5023,7 +5182,7 @@ The water temperature is assumed uniform in a cross section.
                     port_a.p,
                     inStream(port_a.h_outflow),
                     port_b.Xi_outflow));
-// Heat losses
+              // Heat losses
               T_b_outflow = TAmb + (T_a_inflow - TAmb)*Modelica.Math.exp(-tau/tau_char);
 
               heatPort.Q_flow = -AixLib.Utilities.Math.Functions.spliceFunction(
@@ -5214,7 +5373,7 @@ First implementation.</li>
                 "Heat transfer to or from surroundings (positive if pipe is colder than surrounding)"
                 annotation (Placement(transformation(extent={{-10,90},{10,110}})));
 
-// QEnv_flow is introduced because in discretized pipes, heatPort.Q_flow must be summed over all ports.
+              // QEnv_flow is introduced because in discretized pipes, heatPort.Q_flow must be summed over all ports.
               // By introducing this variable, both models have the same variable.
               Modelica.Units.SI.HeatFlowRate QEnv_flow=heatPort.Q_flow
                 "Heat transfer to or from surroundings (positive if pipe is colder than surrounding)";
@@ -5316,7 +5475,7 @@ First implementation.</li>
                 final m_flow_start=m_flow_start) "Time delay"
                 annotation (Placement(transformation(extent={{-10,-50},{10,-30}})));
 
-// In the volume, below, we scale down V and use
+              // In the volume, below, we scale down V and use
               // mSenFac. Otherwise, for air, we would get very large volumes
               // which affect the delay of water vapor and contaminants.
               // See also AixLib.Fluid.FixedResistances.Validation.PlugFlowPipes.TransportWaterAir
@@ -6110,7 +6269,7 @@ AixLib.Fluid.MixingVolumes.BaseClasses.ClosedVolume</a>.
                 "= true to set up initial equations for pressure"
                 annotation(HideResult=true, Evaluate=true, Dialog(tab="Advanced"));
 
-// We set prescribedHeatFlowRate=false so that the
+              // We set prescribedHeatFlowRate=false so that the
               // volume works without the user having to set this advanced parameter,
               // but to get high robustness, a user can set it to the appropriate value
               // as described in the info section.
@@ -6191,7 +6350,7 @@ AixLib.Fluid.MixingVolumes.BaseClasses.ClosedVolume</a>.
                 "Model for dynamic energy balance"
                 annotation (Placement(transformation(extent={{60,0},{80,20}})));
 
-// Density at start values, used to compute initial values and start guesses
+              // Density at start values, used to compute initial values and start guesses
               parameter Modelica.Units.SI.Density rho_start=Medium.density(
                 state=state_start) "Density, used to compute start and guess values";
               final parameter Medium.ThermodynamicState state_default = Medium.setState_pTX(
@@ -6237,8 +6396,8 @@ AixLib.Fluid.MixingVolumes.BaseClasses.ClosedVolume</a>.
                 "Heat flow sensor"
                 annotation (Placement(transformation(extent={{-90,-10},{-70,10}})));
             equation
-///////////////////////////////////////////////////////////////////////////
-// asserts
+              ///////////////////////////////////////////////////////////////////////////
+              // asserts
               if not allowFlowReversal then
                 assert(ports[1].m_flow > -m_flow_small,
               "In " + getInstanceName() + ": Model has flow reversal,
@@ -6246,11 +6405,11 @@ AixLib.Fluid.MixingVolumes.BaseClasses.ClosedVolume</a>.
   m_flow_small    = "             + String(m_flow_small) + "
   ports[1].m_flow = "             + String(ports[1].m_flow) + "
 ");           end if;
-// Actual definition of port variables.
-//
-// If the model computes the energy and mass balances as steady-state,
-// and if it has only two ports,
-// then we use the same base class as for all other steady state models.
+              // Actual definition of port variables.
+              //
+              // If the model computes the energy and mass balances as steady-state,
+              // and if it has only two ports,
+              // then we use the same base class as for all other steady state models.
               if useSteadyStateTwoPort then
               connect(steBal.port_a, ports[1]) annotation (Line(
                   points={{20,10},{10,10},{10,-20},{0,-20},{0,-20},{0,-100}},
@@ -6788,11 +6947,11 @@ Implementation is based on <code>Modelica.Fluid</code>.
                 "For bi-directional flow, temperature is regularized in the region |m_flow| < m_flow_small (m_flow_small > 0 required)"
                 annotation (Dialog(tab="Advanced"));
             equation
-// mass balance
+              // mass balance
               port_b.m_flow = -port_a.m_flow;
-// momentum equation (no pressure loss)
+              // momentum equation (no pressure loss)
               port_a.p = port_b.p;
-// isenthalpic state transformation (no storage and no loss of energy)
+              // isenthalpic state transformation (no storage and no loss of energy)
               port_a.h_outflow = if allowFlowReversal then inStream(port_b.h_outflow) else Medium.h_default;
               port_b.h_outflow = inStream(port_a.h_outflow);
               port_a.Xi_outflow = if allowFlowReversal then inStream(port_b.Xi_outflow) else Medium.X_default[1:Medium.nXi];
@@ -6912,7 +7071,7 @@ library.
               AixLib.DataBase.Storage.StorageDetailedBaseDataDefinition
               "Data record for Storage" annotation (choicesAllMatching);
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////////////////
             /////////////CONVECTION/////////////////////////////////////////////////////////////////////////////
             ////////////////////////////////////////////////////////////////////////////////////////////////////
             parameter Modelica.Units.SI.CoefficientOfHeatTransfer hConIn=100 "Model assumptions heat transfer coefficient water <-> wall";
@@ -6935,7 +7094,7 @@ library.
             parameter Modelica.Units.SI.Temperature TStartIns=293.15
               "Starting Temperature of insulation in K" annotation(Dialog(tab="Initialization", group="Storage specific"));
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////////////////
             ////////////Advanced parameters/////////////////////////////////////////////////////////////////////
             ////////////////////////////////////////////////////////////////////////////////////////////////////
             parameter Integer nLowerPortSupply=integer(max(AixLib.Utilities.Math.Functions.round(data.hLowerPortSupply/(data.hTank/n) + 0.5,0),1)) "Layer number lower end of supply is connected to"
@@ -6962,7 +7121,7 @@ library.
             parameter Integer nHR=integer(AixLib.Utilities.Math.Functions.round(data.hHR/(data.hTank/n) + 0.5,0)) "Layer number heating rod is connected to"
               annotation (Dialog(tab="Advanced", group="Connection Layers: !Any modification will overwrite the data record behaviour!", descriptionLabel = true));
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////////////////
             ////////////final parameters////////////////////////////////////////////////////////////////////////
             ////////////////////////////////////////////////////////////////////////////////////////////////////
            final parameter Integer disHC1 = nHC1Up-nHC1Low+1;
@@ -7066,7 +7225,7 @@ library.
               "Heat Transfer Model between fluid layers" annotation (choicesAllMatching=
                   true);
 
-///////////////////////////////////////////////////////////////////////////////////////
+            ///////////////////////////////////////////////////////////////////////////////////////
             /////HEATING COILS AND RODS/////////////////////////////////////////////////////////////////////
             ///////////////////////////////////////////////////////////////////////////////////////
             //////////////////////////////////////////////////////////////////////////////////////////
@@ -7087,7 +7246,7 @@ library.
               annotation (Placement(transformation(extent={{-90,2},{-70,22}}),
                   iconTransformation(extent={{-88,20},{-74,32}})));
 
-//////////////////////////////////////////////////////////////////////////////////////////
+            //////////////////////////////////////////////////////////////////////////////////////////
             /////HEATING COIL 2 ////////////////////////////////////////////////////////////////////
             ////////////////////////////////////////////////////////////////////////////////////////
             Modelica.Fluid.Interfaces.FluidPort_a portHC2In(redeclare final
@@ -7105,14 +7264,14 @@ library.
               annotation (Placement(transformation(extent={{-92,-68},{-72,-48}}),
                   iconTransformation(extent={{-88,-64},{-74,-50}})));
 
-//////////////////////////////////////////////////////////////////////////////////////////
+            //////////////////////////////////////////////////////////////////////////////////////////
             /////HEATING ROD ////////////////////////////////////////////////////////////////////
             ////////////////////////////////////////////////////////////////////////////////////////
             Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_a heatingRod
                                                  if useHeatingRod annotation (
                 Placement(transformation(extent={{-86,-6},{-74,6}}, rotation=0)));
 
-//////////////////////////////////////////////////////////////////////////////////////////
+            //////////////////////////////////////////////////////////////////////////////////////////
             /////COVER / INSULATION  ////////////////////////////////////////////////////////////////////
             ////////////////////////////////////////////////////////////////////////////////////////
             AixLib.Fluid.Storage.BaseClasses.StorageCover topCover(
@@ -7231,9 +7390,9 @@ library.
                level = AssertionLevel.error);
 
           equation
-////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////connection of Heating Coils//////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////////////////
+            ///////////////////connection of Heating Coils//////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////////////////
             if useHeatingCoil1 then
 
            for i in nHC1Low:nHC1Up loop
@@ -7278,16 +7437,16 @@ library.
                 smooth=Smooth.None));
 
            end if;
-////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////connection of Heating Rod//////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////////////////
+            ///////////////////connection of Heating Rod//////////////////////////////////////////////////////
+            ///////////////////////////////////////////////////////////////////////////////////////////////////
           if useHeatingRod then
 
           connect(heatingRod, layer[nHR].heatPort);
           end if;
-////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////  connection of Temperature Sensor///////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////////////////
+            ///////////////////  connection of Temperature Sensor///////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////////////////
             if nTS1 <= 1 then
               TBottom = layer[1].heatPort.T;
             elseif nTS1 >= n then
@@ -7302,9 +7461,9 @@ library.
             else
               TTop = layer[nTS2].heatPort.T;
             end if;
-////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////connection of volumes and walls//////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////////////////
+            ///////////////////connection of volumes and walls//////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////////////////
              for i in 1:n loop
                connect(layer[i].heatPort, storageMantle[i].heatportInner);
                connect(storageMantle[i].heatportOuter, heatportOutside);
@@ -7314,9 +7473,9 @@ library.
 
               connect(bottomCover.heatportOuter, heatportOutside);
               connect(topCover.heatportOuter, heatportOutside);
-////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////connections of inner layers//////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////////////////
+            ///////////////////connections of inner layers//////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////////////////
           for i in 2:(n-1) loop
               if nLowerPortDemand == i then
                  connect(layer[i].ports[4], fluidportBottom2);
@@ -7341,9 +7500,9 @@ library.
               end if;
 
             end for;
-////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////connections of upper and lower layer/////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////////////////
+            ///////////////////connections of upper and lower layer/////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////////////////
             if nLowerPortDemand == 1 then
               connect(layer[1].ports[3],fluidportBottom2);
             end if;
@@ -7361,9 +7520,9 @@ library.
             if nUpperPortSupply == n then
               connect(layer[n].ports[2],fluidportTop1);
             end if;
-////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////connections of heat transfer model///////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////////////////
+            ///////////////////connections of heat transfer model///////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////////////////
             connect(heatTransfer.therm, layer.heatPort);
             annotation (Icon(coordinateSystem(preserveAspectRatio=true, extent={{-80,-100},
                       {80,100}}), graphics={
@@ -7799,7 +7958,7 @@ library.
                 dT[i] = therm[i].T-therm[i+1].T;
                 qFlow[i] = lambdaWater*A/height*dT[i];
               end for;
-// Positive heat flows here mean negative heat flows for the fluid layers
+              // Positive heat flows here mean negative heat flows for the fluid layers
               therm[1].Q_flow = qFlow[1];
               for i in 2:n-1 loop
                    therm[i].Q_flow = -qFlow[i-1]+qFlow[i];
@@ -8119,7 +8278,7 @@ library.
 
             model StorageCover "Sandwich wall construction for heat storage cover"
 
-// Assumptions
+              // Assumptions
               parameter Modelica.Fluid.Types.Dynamics energyDynamics=Modelica.Fluid.Types.Dynamics.DynamicFreeInitial
                 "Type of energy balance: dynamic (3 initialization options) or steady state"
                 annotation(Evaluate=true, Dialog(tab = "Dynamics", group="Equations"));
@@ -8325,7 +8484,7 @@ library.
 
             model StorageMantle
 
-// Assumptions
+              // Assumptions
               parameter Modelica.Fluid.Types.Dynamics energyDynamics=Modelica.Fluid.Types.Dynamics.DynamicFreeInitial
                 "Type of energy balance: dynamic (3 initialization options) or steady state"
                 annotation(Evaluate=true, Dialog(tab = "Dynamics", group="Equations"));
@@ -8607,7 +8766,7 @@ library.
                 k[i]=(noEvent(if dT[i]>0 then lambda[i] else 0)+lambdaWater)*A/height;
                 qFlow[i] = k[i]*dT[i];
               end for;
-// Positive heat flows here mean negative heat flows for the fluid layers
+              // Positive heat flows here mean negative heat flows for the fluid layers
               therm[1].Q_flow = qFlow[1];
               for i in 2:n-1 loop
                    therm[i].Q_flow = -qFlow[i-1]+qFlow[i];
@@ -8693,7 +8852,7 @@ library.
                 k[i]=(noEvent(smooth(1,if dT[i]>0 then lambda[i] else 0))+lambdaWater)*A/height;
                 qFlow[i] = k[i]*dT[i];
               end for;
-// Positive heat flows here mean negative heat flows for the fluid layers
+              // Positive heat flows here mean negative heat flows for the fluid layers
               therm[1].Q_flow = qFlow[1];
               for i in 2:n-1 loop
                    therm[i].Q_flow = -qFlow[i-1]+qFlow[i];
@@ -8790,7 +8949,7 @@ library.
                 k[i]=triggeredTrapezoid[i].y*A/height;
                 qFlow[i] = k[i]*dT[i];
               end for;
-// Positive heat flows here mean negative heat flows for the fluid layers
+              // Positive heat flows here mean negative heat flows for the fluid layers
               therm[1].Q_flow = qFlow[1];
               for i in 2:n-1 loop
                    therm[i].Q_flow = -qFlow[i-1]+qFlow[i];
@@ -9375,13 +9534,13 @@ First implementation.
                 "Specific heat conductivity of insulation";
               parameter Integer nSeg(min=2) = 2 "Number of volume segments";
 
-////////////////////////////////////////////////////////////////////
+              ////////////////////////////////////////////////////////////////////
               // Assumptions
               parameter Types.Dynamics energyDynamics=Modelica.Fluid.Types.Dynamics.FixedInitial
                 "Formulation of energy balance"
                 annotation(Evaluate=true, Dialog(tab = "Dynamics", group="Conservation equations"));
 
-// Initialization
+              // Initialization
               parameter Medium.AbsolutePressure p_start = Medium.p_default
                 "Start value of pressure"
                 annotation(Dialog(tab = "Initialization"));
@@ -9399,10 +9558,10 @@ First implementation.
                 "Start value of trace substances"
                 annotation (Dialog(tab="Initialization", enable=Medium.nC > 0));
 
-// Dynamics
+              // Dynamics
               parameter Modelica.Units.SI.Time tau=1 "Time constant for mixing";
 
-////////////////////////////////////////////////////////////////////
+              ////////////////////////////////////////////////////////////////////
               // Connectors
               Modelica.Blocks.Interfaces.RealOutput Ql_flow
                 "Heat loss of tank (positive if heat flows from tank to ambient)"
@@ -9423,7 +9582,7 @@ First implementation.
                 "Heat port tank bottom (outside insulation). Leave unconnected for adiabatic condition"
                 annotation (Placement(transformation(extent={{14,-80},{26,-68}})));
 
-// Models
+              // Models
               AixLib.Fluid.MixingVolumes.MixingVolume[nSeg] vol(
                 redeclare each package Medium = Medium,
                 each energyDynamics=energyDynamics,
@@ -9501,7 +9660,7 @@ First implementation.
                   points={{-40,60},{6,60},{6,-6}},
                   color={191,0,0}));
               for i in 1:nSeg-1 loop
-// heat conduction between fluid nodes
+                // heat conduction between fluid nodes
                  connect(vol[i].heatPort, conFlu[i].port_a)    annotation (Line(points={{6,-6},{
                         6,-6},{-60,-6},{-60,10},{-56,10},{-56,11}},    color={191,0,0}));
                 connect(vol[i+1].heatPort, conFlu[i].port_b)    annotation (Line(points={{6,-6},{
@@ -9924,49 +10083,49 @@ First implementation to address
             equation
               assert(nSeg >= 4,
               "Number of segments of the enhanced stratified tank should be no less than 4 (nSeg>=4).");
-// assign zero flow conditions at port
+              // assign zero flow conditions at port
               fluidPort[:].m_flow = zeros(nSeg + 2);
               fluidPort[:].h_outflow = zeros(nSeg + 2);
               fluidPort[:].Xi_outflow = zeros(nSeg + 2, Medium.nXi);
               fluidPort[:].C_outflow = zeros(nSeg + 2, Medium.nC);
-// assign extended enthalpy vectors
+              // assign extended enthalpy vectors
               for i in 1:nSeg + 2 loop
                 h[i] = inStream(fluidPort[i].h_outflow);
               end for;
-// Value that transitions between 0 and 1 as the flow reverses.
+              // Value that transitions between 0 and 1 as the flow reverses.
               sig = Modelica.Fluid.Utilities.regStep(
                 m_flow,
                 1,
                 0,
                 m_flow_small);
-// at surface between port_a and vol1
+              // at surface between port_a and vol1
               comSig = 1 - sig;
-// at surface between port_a and vol1
+              // at surface between port_a and vol1
               hOut[1] = sig*h[1] + comSig*h[2];
-// at surface between vol[nSeg] and port_b
+              // at surface between vol[nSeg] and port_b
               hOut[nSeg + 1] = sig*h[nSeg + 1] + comSig*h[nSeg + 2];
-// Pros: These two equations can further reduce the temperature overshoot by using the upwind
-// Cons: The minimum of nSeg hase to be 4 instead of 2.
+              // Pros: These two equations can further reduce the temperature overshoot by using the upwind
+              // Cons: The minimum of nSeg hase to be 4 instead of 2.
               hOut[2] = sig*h[2] + comSig*h[3];
-// at surface between vol1 and vol2
+              // at surface between vol1 and vol2
               hOut[nSeg] = sig*h[nSeg] + comSig*h[nSeg + 1];
-// at surface between vol[nSeg-1] and vol[nSeg]
+              // at surface between vol[nSeg-1] and vol[nSeg]
               for i in 3:nSeg - 1 loop
-// at surface between vol[i-1] and vol[i]
-// QUICK method
+                // at surface between vol[i-1] and vol[i]
+                // QUICK method
                 hOut[i] = 0.5*(h[i] + h[i + 1]) - comSig*0.125*(h[i + 2] + h[i] - 2*h[i + 1])
                    - sig*0.125*(h[i - 1] + h[i + 1] - 2*h[i]);
-//     hOut[i] = 0.5*(h[i]+h[i+1]); // Central difference method
+                //     hOut[i] = 0.5*(h[i]+h[i+1]); // Central difference method
               end for;
 
               for i in 1:nSeg loop
-// difference between QUICK and UPWIND; index of H_flow is same as hOut
+                // difference between QUICK and UPWIND; index of H_flow is same as hOut
                 Q_flow[i] = m_flow*(hOut[i + 1] - hOut[i]) - (H_flow[i + 1] - H_flow[i]);
               end for;
-//   Q_flow_upWind = sum(Q_flow[i] for i in 1:nSeg); //Used to test the energy conservation
+              //   Q_flow_upWind = sum(Q_flow[i] for i in 1:nSeg); //Used to test the energy conservation
               for i in 1:nSeg loop
-// Add the difference back to the volume as heat flow. An under-relaxation is needed to reduce
-// oscillations caused by high order method
+                // Add the difference back to the volume as heat flow. An under-relaxation is needed to reduce
+                // oscillations caused by high order method
                 heatPort[i].Q_flow = Q_flow[i]*alpha;
               end for;
               annotation (Documentation(info="<html>
@@ -10070,7 +10229,7 @@ This package contains thermal energy storage models.
 
             extends AixLib.Fluid.Interfaces.LumpedVolumeDeclarations;
 
-// Constants
+            // Constants
             parameter Boolean initialize_p = not Medium.singleState
               "= true to set up initial equations for pressure"
               annotation(HideResult=true, Evaluate=true, Dialog(tab="Advanced"));
@@ -10078,7 +10237,7 @@ This package contains thermal energy storage models.
             constant Boolean simplify_mWat_flow = true
               "Set to true to cause port_a.m_flow + port_b.m_flow = 0 even if mWat_flow is non-zero. Used only if Medium.nX > 1";
 
-// Port definitions
+            // Port definitions
             parameter Integer nPorts=0 "Number of ports"
               annotation(Evaluate=true, Dialog(connectorSizing=true, tab="General",group="Ports"));
 
@@ -10100,7 +10259,7 @@ This package contains thermal energy storage models.
               if use_C_flow "Trace substance mass flow rate added to the medium"
               annotation (Placement(transformation(extent={{-140,-60},{-100,-20}})));
 
-// Outputs that are needed in models that use this model
+            // Outputs that are needed in models that use this model
             Modelica.Blocks.Interfaces.RealOutput hOut(unit="J/kg",
                                                        start=hStart,
                                                        nominal=Medium.h_default)
@@ -10144,7 +10303,7 @@ This package contains thermal energy storage models.
               annotation (Placement(transformation(extent={{-40,-10},{40,10}},
                 origin={0,-100})));
 
-// Set nominal attributes where literal values can be used.
+            // Set nominal attributes where literal values can be used.
             Medium.BaseProperties medium(
               p(start=p_start),
               h(start=hStart),
@@ -10186,7 +10345,7 @@ This package contains thermal energy storage models.
             Modelica.Units.SI.EnthalpyFlowRate Hb_flow
               "Enthalpy flow across boundaries or energy source/sink";
 
-// Parameters that need to be defined by an extending class
+            // Parameters that need to be defined by an extending class
             parameter Modelica.Units.SI.Volume fluidVolume "Volume";
             final parameter Modelica.Units.SI.HeatCapacity CSen=(mSenFac - 1)*rho_default
                 *cp_default*fluidVolume
@@ -10204,7 +10363,7 @@ This package contains thermal energy storage models.
                 p=p_start,
                 X=X_start[1:Medium.nXi])) "Density, used to compute fluid mass";
 
-// Parameter for avoiding extra overhead calculations when CSen==0
+            // Parameter for avoiding extra overhead calculations when CSen==0
             final parameter Boolean computeCSen = abs(mSenFac-1) > Modelica.Constants.eps
               annotation(Evaluate=true);
             final parameter Medium.ThermodynamicState state_default = Medium.setState_pTX(
@@ -10227,19 +10386,19 @@ This package contains thermal energy storage models.
                 T_start,
                 X_start) "Start value for specific enthalpy";
 
-// Set _simplify_mWat_flow == false for Glycol47; otherwise Dymola 2018FD01
+            // Set _simplify_mWat_flow == false for Glycol47; otherwise Dymola 2018FD01
             // cannot differentiate the equations.
             constant Boolean _simplify_mWat_flow = simplify_mWat_flow and Medium.nX > 1
              "If true, then port_a.m_flow + port_b.m_flow = 0 even if mWat_flow is non-zero, and equations are simplified";
 
-// Conditional connectors
+            // Conditional connectors
             Modelica.Blocks.Interfaces.RealInput mWat_flow_internal(unit="kg/s")
               "Needed to connect to conditional connector";
             Modelica.Blocks.Interfaces.RealInput C_flow_internal[Medium.nC]
               "Needed to connect to conditional connector";
 
           initial equation
-// Assert that the substance with name 'water' has been found.
+            // Assert that the substance with name 'water' has been found.
             if use_mWat_flow then
               assert(Medium.nXi == 0 or abs(sum(s) - 1) < 1e-5, "In " + getInstanceName()
                  + ":
@@ -10247,9 +10406,9 @@ This package contains thermal energy storage models.
                  + Medium.mediumName + "'.
          Check medium model.");
             end if;
-// Make sure that if energyDynamics is SteadyState, then
-// massDynamics is also SteadyState.
-// Otherwise, the system of ordinary differential equations may be inconsistent.
+            // Make sure that if energyDynamics is SteadyState, then
+            // massDynamics is also SteadyState.
+            // Otherwise, the system of ordinary differential equations may be inconsistent.
             if energyDynamics == Modelica.Fluid.Types.Dynamics.SteadyState then
               assert(massDynamics == energyDynamics, "In " + getInstanceName() + ":
          If 'massDynamics == Modelica.Fluid.Types.Dynamics.SteadyState', then it is
@@ -10257,7 +10416,7 @@ This package contains thermal energy storage models.
          Otherwise, the system of equations may not be consistent.
          You need to select other parameter values.");
             end if;
-// initialization of balances
+            // initialization of balances
             if energyDynamics == Modelica.Fluid.Types.Dynamics.FixedInitial then
                 medium.T = T_start;
             else
@@ -10295,7 +10454,7 @@ This package contains thermal energy storage models.
             end if;
 
           equation
-// Conditional connectors
+            // Conditional connectors
             connect(mWat_flow, mWat_flow_internal);
             if not use_mWat_flow then
               mWat_flow_internal = 0;
@@ -10305,19 +10464,19 @@ This package contains thermal energy storage models.
             if not use_C_flow then
               C_flow_internal = zeros(Medium.nC);
             end if;
-// Total quantities
+            // Total quantities
             if massDynamics == Modelica.Fluid.Types.Dynamics.SteadyState then
               m = fluidVolume*rho_start;
             else
               if _simplify_mWat_flow then
-// If moisture is neglected in mass balance, assume for computation
-// of the mass of air that the air is at Medium.X_default.
+                // If moisture is neglected in mass balance, assume for computation
+                // of the mass of air that the air is at Medium.X_default.
                 m = fluidVolume*Medium.density(Medium.setState_phX(
                   p = medium.p,
                   h = hOut,
                   X = Medium.X_default));
               else
-// Use actual density
+                // Use actual density
                 m = fluidVolume*medium.d;
               end if;
             end if;
@@ -10334,9 +10493,9 @@ This package contains thermal energy storage models.
             COut = C;
 
             for i in 1:nPorts loop
-//The semiLinear function should be used for the equations below
-//for allowing min/max simplifications.
-//See https://github.com/ibpsa/modelica-ibpsa/issues/216 for a discussion and motivation
+              //The semiLinear function should be used for the equations below
+              //for allowing min/max simplifications.
+              //See https://github.com/ibpsa/modelica-ibpsa/issues/216 for a discussion and motivation
               ports_H_flow[i]     = semiLinear(ports[i].m_flow, inStream(ports[i].h_outflow), ports[i].h_outflow)
                 "Enthalpy flow";
               for j in 1:Medium.nXi loop
@@ -10359,7 +10518,7 @@ This package contains thermal energy storage models.
 
             mb_flow = sum(ports.m_flow);
             Hb_flow = sum(ports_H_flow);
-// Energy and mass balances
+            // Energy and mass balances
             if energyDynamics == Modelica.Fluid.Types.Dynamics.SteadyState then
               0 = Hb_flow + Q_flow;
             else
@@ -10383,7 +10542,7 @@ This package contains thermal energy storage models.
             else
               der(mC)  = mbC_flow + C_flow_internal;
             end if;
-// Properties of outgoing flows
+            // Properties of outgoing flows
             for i in 1:nPorts loop
                 ports[i].p          = medium.p;
                 ports[i].h_outflow  = medium.h;
@@ -10830,7 +10989,7 @@ Implemented first version in <code>Buildings</code> library, based on model from
                         X_a=0.40)
                         "Propylene glycol water, 40% mass fraction")));
 
-// Assumptions
+            // Assumptions
             parameter Modelica.Fluid.Types.Dynamics energyDynamics=Modelica.Fluid.Types.Dynamics.DynamicFreeInitial
               "Type of energy balance: dynamic (3 initialization options) or steady state"
               annotation(Evaluate=true, Dialog(tab = "Dynamics", group="Conservation equations"));
@@ -10844,7 +11003,7 @@ Implemented first version in <code>Buildings</code> library, based on model from
               "Type of trace substance balance: dynamic (3 initialization options) or steady state"
               annotation(Evaluate=true, Dialog(tab = "Dynamics", group="Conservation equations"));
 
-// Initialization
+            // Initialization
             parameter Medium.AbsolutePressure p_start = Medium.p_default
               "Start value of pressure"
               annotation(Dialog(tab = "Initialization"));
@@ -10868,7 +11027,7 @@ Implemented first version in <code>Buildings</code> library, based on model from
               annotation(Dialog(tab="Dynamics"));
 
             // The parameter below is evaluated by OCT during compilation, and
-// if false, the assert statement won't be optimized away during
+            // if false, the assert statement won't be optimized away during
             // code generation.
           protected
             final parameter Boolean wrongEnergyMassBalanceConfiguration=
@@ -11299,7 +11458,7 @@ First implementation.
             "Partial element transporting fluid between two ports without storage of mass or energy"
             extends AixLib.Fluid.Interfaces.PartialTwoPort;
 
-// Advanced
+            // Advanced
             // Note: value of dp_start shall be refined by derived model,
             // based on local dp_nominal
             parameter Modelica.Units.SI.PressureDifference dp_start(displayUnit="Pa") = 0
@@ -11314,7 +11473,7 @@ First implementation.
               "Small mass flow rate for regularization of zero flow"
               annotation(Dialog(tab = "Advanced"));
 
-// Diagnostics
+            // Diagnostics
             parameter Boolean show_T = true
               "= true, if temperatures at port_a and port_b are computed"
               annotation (
@@ -11326,7 +11485,7 @@ First implementation.
                 Dialog(tab="Advanced", group="Diagnostics"),
                 HideResult=true);
 
-// Variables
+            // Variables
             Medium.MassFlowRate m_flow(
                min=if allowFlowReversal then -Modelica.Constants.inf else 0,
                start = m_flow_start) "Mass flow rate in design flow direction";
@@ -11368,15 +11527,15 @@ First implementation.
                             m_flow_small) if show_T
               "Temperature close to port_b, if show_T = true";
           equation
-// Pressure drop in design flow direction
+            // Pressure drop in design flow direction
             dp = port_a.p - port_b.p;
-// Design direction of mass flow rate
+            // Design direction of mass flow rate
             m_flow = port_a.m_flow;
             assert(m_flow > -m_flow_small or allowFlowReversal,
                 "Reverting flow occurs even though allowFlowReversal is false");
-// Mass balance (no storage)
+            // Mass balance (no storage)
             port_a.m_flow + port_b.m_flow = 0;
-// Transport of substances
+            // Transport of substances
             port_a.Xi_outflow = if allowFlowReversal then inStream(port_b.Xi_outflow) else Medium.X_default[1:Medium.nXi];
             port_b.Xi_outflow = inStream(port_a.Xi_outflow);
 
@@ -11506,7 +11665,7 @@ First implementation.
               if use_C_flow "Trace substance mass flow rate added to the medium"
               annotation (Placement(transformation(extent={{-140,-60},{-100,-20}})));
 
-// Outputs that are needed in models that extend this model
+            // Outputs that are needed in models that extend this model
             Modelica.Blocks.Interfaces.RealOutput hOut(final unit="J/kg")
               "Leaving specific enthalpy of the component"
               annotation (Placement(transformation(extent={{-10,-10},{10,10}},
@@ -11546,7 +11705,7 @@ First implementation.
             Modelica.Units.SI.MassFlowRate mXi_flow[Medium.nXi]
               "Mass flow rates of independent substances added to the medium";
 
-// Parameters for inverseXRegularized.
+            // Parameters for inverseXRegularized.
             // These are assigned here for efficiency reason.
             // Otherwise, they would need to be computed each time
             // the function is invocated.
@@ -11585,7 +11744,7 @@ First implementation.
             Modelica.Blocks.Interfaces.RealInput C_flow_internal[Medium.nC]
               "Needed to connect to conditional connector";
           initial equation
-// Assert that the substance with name 'water' has been found.
+            // Assert that the substance with name 'water' has been found.
             if use_mWat_flow then
               assert(Medium.nXi == 0 or abs(sum(s)-1) < 1e-5,
                 "If Medium.nXi > 1, then substance 'water' must be present for one component.'"
@@ -11593,7 +11752,7 @@ First implementation.
                    + "Check medium model.");
             end if;
           equation
-// Conditional connectors
+            // Conditional connectors
             connect(mWat_flow, mWat_flow_internal);
             if not use_mWat_flow then
               mWat_flow_internal = 0;
@@ -11603,11 +11762,11 @@ First implementation.
             if not use_C_flow then
               C_flow_internal = zeros(Medium.nC);
             end if;
-// Species flow rate from connector mWat_flow
+            // Species flow rate from connector mWat_flow
             mXi_flow = mWat_flow_internal * s;
-// Regularization of m_flow around the origin to avoid a division by zero
-// m_flowInv is only used if prescribedHeatFlowRate == true, or
-// if the input connectors mWat_flow or C_flow are enabled.
+            // Regularization of m_flow around the origin to avoid a division by zero
+            // m_flowInv is only used if prescribedHeatFlowRate == true, or
+            // if the input connectors mWat_flow or C_flow are enabled.
             if use_m_flowInv then
               m_flowInv = AixLib.Utilities.Math.Functions.inverseXRegularized(
                           x=port_a.m_flow,
@@ -11620,7 +11779,7 @@ First implementation.
                           e=eReg,
                           f=fReg);
             else
-// m_flowInv is not used.
+              // m_flowInv is not used.
               m_flowInv = 0;
             end if;
 
@@ -11637,8 +11796,8 @@ First implementation.
             end if;
 
             if allowFlowReversal then
-// Formulate hOut using spliceFunction. This avoids an event iteration.
-// The introduced error is small because deltax=m_flow_small/1e3
+              // Formulate hOut using spliceFunction. This avoids an event iteration.
+              // The introduced error is small because deltax=m_flow_small/1e3
               hOut = AixLib.Utilities.Math.Functions.regStep(
                           y1=port_b.h_outflow,
                           y2=port_a.h_outflow,
@@ -11659,12 +11818,12 @@ First implementation.
               XiOut = port_b.Xi_outflow;
               COut =  port_b.C_outflow;
             end if;
-//////////////////////////////////////////////////////////////////////////////////////////
-// Energy balance and mass balance
-// Mass balance (no storage)
+            //////////////////////////////////////////////////////////////////////////////////////////
+            // Energy balance and mass balance
+            // Mass balance (no storage)
               port_a.m_flow + port_b.m_flow = if simplify_mWat_flow then 0 else -mWat_flow_internal;
-// Substance balance
-// a) forward flow
+            // Substance balance
+            // a) forward flow
               if use_m_flowInv then
                 port_b.Xi_outflow = inStream(port_a.Xi_outflow) + mXi_flow * m_flowInv;
               else // no water is added
@@ -11672,8 +11831,8 @@ First implementation.
                 port_b.Xi_outflow = inStream(port_a.Xi_outflow);
               end if;
 
-// b) backward flow
-if allowFlowReversal then
+            // b) backward flow
+            if allowFlowReversal then
                 if use_m_flowInv then
                   port_a.Xi_outflow = inStream(port_b.Xi_outflow) - mXi_flow * m_flowInv;
                 else // no water added
@@ -11684,10 +11843,10 @@ if allowFlowReversal then
                 port_a.Xi_outflow = Medium.X_default[1:Medium.nXi];
               end if;
 
-// Energy balance.
-// This equation is approximate since m_flow = port_a.m_flow is used for the mass flow rate
-// at both ports. Since mWat_flow_internal << m_flow, the error is small.
-if prescribedHeatFlowRate then
+            // Energy balance.
+            // This equation is approximate since m_flow = port_a.m_flow is used for the mass flow rate
+            // at both ports. Since mWat_flow_internal << m_flow, the error is small.
+            if prescribedHeatFlowRate then
                 port_b.h_outflow = inStream(port_a.h_outflow) + Q_flow * m_flowInv;
                 if allowFlowReversal then
                   port_a.h_outflow = inStream(port_b.h_outflow) - Q_flow * m_flowInv;
@@ -11695,21 +11854,21 @@ if prescribedHeatFlowRate then
                   port_a.h_outflow = Medium.h_default;
                 end if;
               else
-// Case with prescribedHeatFlowRate == false.
-// port_b.h_outflow is known and the equation needs to be solved for Q_flow.
-// Hence, we cannot use m_flowInv as for m_flow=0, any Q_flow would satisfiy
-// Q_flow * m_flowInv = 0.
-// The same applies for port_b.Xi_outflow and mXi_flow.
+              // Case with prescribedHeatFlowRate == false.
+              // port_b.h_outflow is known and the equation needs to be solved for Q_flow.
+              // Hence, we cannot use m_flowInv as for m_flow=0, any Q_flow would satisfiy
+              // Q_flow * m_flowInv = 0.
+              // The same applies for port_b.Xi_outflow and mXi_flow.
                 port_a.m_flow * (inStream(port_a.h_outflow) - port_b.h_outflow)     = -Q_flow;
                 if allowFlowReversal then
                   port_a.m_flow * (inStream(port_b.h_outflow)  - port_a.h_outflow)  = +Q_flow;
                 else
-// When allowFlowReversal = false, the downstream enthalpy does not matter.
-// Therefore a dummy value is used to avoid algebraic loops
+                // When allowFlowReversal = false, the downstream enthalpy does not matter.
+                // Therefore a dummy value is used to avoid algebraic loops
                   port_a.h_outflow = Medium.h_default;
                 end if;
               end if;
-// Transport of trace substances
+            // Transport of trace substances
             if use_m_flowInv and use_C_flow then
               port_b.C_outflow =  inStream(port_a.C_outflow) + C_flow_internal * m_flowInv;
             else // no trace substance added.
@@ -11726,8 +11885,8 @@ if prescribedHeatFlowRate then
             else
               port_a.C_outflow = zeros(Medium.nC);
             end if;
-////////////////////////////////////////////////////////////////////////////
-// No pressure drop in this model
+            ////////////////////////////////////////////////////////////////////////////
+            // No pressure drop in this model
             port_a.p = port_b.p;
             annotation (
               preferredView="info",
@@ -12177,12 +12336,12 @@ be extended when building a new model.
               level = AssertionLevel.warning);
 
           equation
-// Isenthalpic state transformation (no storage and no loss of energy)
+            // Isenthalpic state transformation (no storage and no loss of energy)
             port_a.h_outflow = if allowFlowReversal then inStream(port_b.h_outflow) else Medium.h_default;
             port_b.h_outflow = inStream(port_a.h_outflow);
-// Mass balance (no storage)
+            // Mass balance (no storage)
             port_a.m_flow + port_b.m_flow = 0;
-// Transport of substances
+            // Transport of substances
             port_a.Xi_outflow = if allowFlowReversal then inStream(port_b.Xi_outflow) else Medium.X_default[1:Medium.nXi];
             port_b.Xi_outflow = inStream(port_a.Xi_outflow);
 
@@ -13234,7 +13393,7 @@ valves and sensors. For other fluid flow models, see <a href=
               "Convection heat transfer coeffient";
             parameter Modelica.Units.SI.Area A(min=0);
           equation
-// no storage of heat
+            // no storage of heat
             port_a.Q_flow =hCon*A*(port_a.T - port_b.T);
             annotation (Diagram(coordinateSystem(preserveAspectRatio=true,   extent={{-100,
                       -100},{100,100}}),                                                                                                    Rectangle(extent = [-80, 60; 0, -100], style(rgbcolor = {0, 0, 0}, pattern = 0, fillColor = 31, rgbfillColor = {211, 243, 255}, fillPattern = 1)), Rectangle(extent = [-80, 60; 80, -100], style),   Rectangle(extent = [60, 60; 80, -100], style(pattern = 0, fillColor = 7, rgbfillColor = {244, 244, 244}, fillPattern = 1)), Rectangle(extent = [40, 60; 60, -100], style(pattern = 0, fillColor = 30, rgbfillColor = {207, 207, 207}, fillPattern = 1)), Rectangle(extent = [20, 60; 40, -100], style(pattern = 0, fillColor = 8, rgbfillColor = {182, 182, 182}, fillPattern = 1)), Rectangle(extent = [0, 60; 20, -100], style(pattern = 0, fillColor = 9, rgbfillColor = {156, 156, 156}, fillPattern = 1)), graphics={
@@ -13839,7 +13998,7 @@ First implementation.
                 "Twice continuously differentiable transition between the regions"
                 extends Modelica.Icons.Function;
 
-// The function that transitions between the regions is implemented
+                // The function that transitions between the regions is implemented
                 // using its own function. This allows Dymola 2016 to inline the function
                 // inverseXRegularized.
               input Real x "Abscissa value";
@@ -14167,14 +14326,14 @@ This package contains utility models such as for thermal comfort calculation, in
               rotation=90,
               origin={0,106})));
       equation
-// Port temperature
+        // Port temperature
         T = port.T;
 
         Cp = if noEvent(T < T_s) then C_ice else if noEvent(T > T_l) then C_w else C_melt;
-// Linear liquid fraction
+        // Linear liquid fraction
         liquidFraction = if noEvent(T <= T_s) then 0 else if noEvent(T >= T_l) then 1 else (T - T_s)/(
           T_l - T_s);
-// Heat balance equation
+        // Heat balance equation
         m*Cp*der(T) = port.Q_flow;
         annotation (Icon(coordinateSystem(preserveAspectRatio=false), graphics={
                                          Polygon(
@@ -14202,36 +14361,36 @@ This package contains utility models such as for thermal comfort calculation, in
       model ThermalConductorPCM
         "Thermal conductor with phase-dependent conductance based on liquid fraction"
 
-// Parameters for Geometry
+        // Parameters for Geometry
         parameter Modelica.Units.SI.Area A=0.0155*1 "Cross-sectional area [m²]";
         parameter Modelica.Units.SI.Length d "Thickness of material [m]";
 
-// Thermal Conductivity for Water and Ice
+        // Thermal Conductivity for Water and Ice
         parameter Modelica.Units.SI.ThermalConductivity k_ice = 1.918
           "Thermal conductivity of ice [W/(m·K)]";
         parameter Modelica.Units.SI.ThermalConductivity k_water = 0.518
           "Thermal conductivity of water [W/(m·K)]";
 
-// **Real input for liquid fraction (0 = solid, 1 = liquid)**
+        // **Real input for liquid fraction (0 = solid, 1 = liquid)**
         Modelica.Blocks.Interfaces.RealInput liquidFraction annotation (
             Placement(transformation(
               extent={{-20,-20},{20,20}},
               rotation=270,
               origin={-2,106})));
 
-// Heat Transfer Interfaces
+        // Heat Transfer Interfaces
         Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_a port_a annotation (
             Placement(transformation(extent={{-110,-10},{-90,10}})));
         Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_b port_b annotation (
             Placement(transformation(extent={{90,-10},{110,10}})));
 
-// **Effective Thermal Conductance**
+        // **Effective Thermal Conductance**
         Modelica.Units.SI.ThermalConductance G "Thermal conductance [W/K]";
 
       equation
-// **Linear interpolation for effective thermal conductivity**
+        // **Linear interpolation for effective thermal conductivity**
         G = ((1 - liquidFraction) * k_ice + liquidFraction * k_water) * A /(0.5*d);
-// **Heat transfer equation**
+        // **Heat transfer equation**
         port_a.Q_flow + port_b.Q_flow = 0;
         port_a.Q_flow = G * (port_a.T - port_b.T);
         annotation (Icon(coordinateSystem(preserveAspectRatio=false), graphics={
@@ -14423,13 +14582,13 @@ This package contains utility models such as for thermal comfort calculation, in
         parameter Modelica.Units.SI.Temperature T_start=274.15 "Initial Temperature of PCM";
         parameter Integer N_w( min=1) "number of disc1D_element in the array";
 
-// External ports
+        // External ports
         Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_a port_P
           annotation (Placement(transformation(extent={{-110,-10},{-90,10}})));
         Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_a port_R1
           annotation (Placement(transformation(extent={{90,-10},{110,10}})));
 
-// Outputs: averages over discs (single numbers)
+        // Outputs: averages over discs (single numbers)
         Modelica.Blocks.Interfaces.RealOutput LF_avg(min=0, max=1)
           "Average liquid fraction over all discs"
           annotation (Placement(transformation(extent={{96,38},{116,58}})));
@@ -14437,14 +14596,14 @@ This package contains utility models such as for thermal comfort calculation, in
           "Average temperature over all discs"
           annotation (Placement(transformation(extent={{94,74},{114,94}})));
 
-// Components
+        // Components
         RHX_Element RHX_Element1(
           C_RHX_element=C_RHX_element,
           G_RHX_element=G_RHX_element,
           T_start_RHX_element=T_start_RHX_element)
           annotation (Placement(transformation(extent={{-80,-10},{-60,10}})));
 
-// Array of discs
+        // Array of discs
         disc1D_element disc[N_w](
           each L_cell = L_cell,
           each W_cell = W_cell,
@@ -14452,7 +14611,7 @@ This package contains utility models such as for thermal comfort calculation, in
           each T_start = T_start)
           annotation (Placement(transformation(extent={{-36,-10},{-16,10}})));
 
-// Sum and average blocks for LF and T
+        // Sum and average blocks for LF and T
         Modelica.Blocks.Math.Sum sumLF(nin=N_w)  "Sum of LF_Cell over discs";
         Modelica.Blocks.Math.Sum sumT(nin=N_w)   "Sum of T_Cell over discs";
         Modelica.Blocks.Math.Gain scaleLF(k=1.0/N_w);
@@ -14465,22 +14624,22 @@ This package contains utility models such as for thermal comfort calculation, in
         parameter Modelica.Units.SI.Temperature T_start_RHX_element=293.15
           "Temperature of element";
       equation
-// External left port and first disc both meet at RHX port_pipe
+        // External left port and first disc both meet at RHX port_pipe
         connect(RHX_Element1.port_water, disc[1].port_L);
         connect(port_P, RHX_Element1.port_pipe)
           annotation (Line(points={{-100,0},{-80,0}}, color={191,0,0}));
-// Chain discs: port_R(i) -> port_L(i+1)
+        // Chain discs: port_R(i) -> port_L(i+1)
         for i in 1:N_w-1 loop
           connect(disc[i].port_R, disc[i+1].port_L);
         end for;
-// Right boundary
+        // Right boundary
         connect(disc[N_w].port_R, port_R1);
-// Wire disc outputs into the summation blocks
+        // Wire disc outputs into the summation blocks
         for i in 1:N_w loop
           connect(disc[i].LF_Cell, sumLF.u[i]);
           connect(disc[i].T_Cell,  sumT.u[i]);
         end for;
-// Averages = sums * (1/N_w)
+        // Averages = sums * (1/N_w)
         connect(sumLF.y, scaleLF.u);
         connect(scaleLF.y, LF_avg);
 
@@ -14536,23 +14695,23 @@ This package contains utility models such as for thermal comfort calculation, in
             Modelica.Media.Interfaces.PartialMedium
         "Roll-bond HX fluid medium";
 
-// Geometry and discretization
+        // Geometry and discretization
         parameter Modelica.Units.SI.Length L_RHX=1.3 "length of roll-bond heat exchanger";
         parameter Modelica.Units.SI.Length W_RHX=0.563 "length of roll-bond heat exchanger";
         parameter Modelica.Units.SI.Length Th_RHX=0.0155 "Thickness of PCM in the slab";
         parameter Integer N_p( min=1) "number of descritization in pipe";
         parameter Integer N_w( min=1) "number of disc1D_element in the array";
 
-// Derived cell sizes
+        // Derived cell sizes
         parameter Modelica.Units.SI.Length L_cell=L_RHX/N_p "length of cell";
         parameter Modelica.Units.SI.Length W_cell=W_RHX "width of cell";
         parameter Modelica.Units.SI.Length d=Th_RHX/N_w "thickness of cell";
 
-// Initial temperature of the PCM
+        // Initial temperature of the PCM
         parameter Modelica.Units.SI.Temperature T_start=274.15
           "Initial Temperature of PCM";
 
-// Thermal params for the RHX-side element attached to each slab element
+        // Thermal params for the RHX-side element attached to each slab element
         parameter Modelica.Units.SI.HeatCapacity C_RHX_element=1000
           "Heat capacity of element (= cp*m)";
         parameter Modelica.Units.SI.ThermalConductance G_RHX_element=100
@@ -14560,12 +14719,12 @@ This package contains utility models such as for thermal comfort calculation, in
         parameter Modelica.Units.SI.Temperature T_start_RHX_element=293.15
           "Temperature of element";
 
-// Pipe sizing
+        // Pipe sizing
         parameter Modelica.Units.SI.Length RHX_Equi_diameter=0.01
           "RHX equivalent diameter";
         parameter Modelica.Units.SI.Length RHX_Equi_length=1.3 "Length of the pipe";
 
-// === Array of slab elements (size = N_p) ===
+        // === Array of slab elements (size = N_p) ===
         Slab_element_1D Slabele[N_p](
           each L_cell=L_cell,
           each W_cell=W_cell,
@@ -14577,11 +14736,11 @@ This package contains utility models such as for thermal comfort calculation, in
           each T_start_RHX_element=T_start_RHX_element)
           annotation (Placement(transformation(extent={{-36,-10},{-16,10}})));
 
-// External heat port (all ele[i].port_R1 connect here)
+        // External heat port (all ele[i].port_R1 connect here)
         Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_a port_W
           annotation (Placement(transformation(extent={{90,-10},{110,10}})));
 
-// Pipe with multiple heat ports (one per segment)
+        // Pipe with multiple heat ports (one per segment)
         AGRI_COOL.Buildings.Fluid.FixedResistances.Pipe RHX_Pipe(
           redeclare package Medium = Medium_RHX,
           T_start=268.15,
@@ -14596,7 +14755,7 @@ This package contains utility models such as for thermal comfort calculation, in
               rotation=270,
               origin={-88,0})));
 
-// Fluid ports
+        // Fluid ports
         Modelica.Fluid.Interfaces.FluidPort_a port_a1(redeclare package Medium =
               Medium_RHX)
           "Fluid connector a (positive design flow direction is from port_a to port_b)"
@@ -14606,7 +14765,7 @@ This package contains utility models such as for thermal comfort calculation, in
           "Fluid connector b (positive design flow direction is from port_a to port_b)"
           annotation (Placement(transformation(extent={{-98,-110},{-78,-90}})));
 
-// overall averages for the whole slab ===
+        // overall averages for the whole slab ===
         Modelica.Blocks.Interfaces.RealOutput LF_Slab(min=0, max=1)
           "Average liquid fraction of the entire slab"
           annotation (Placement(transformation(extent={{96,44},{116,64}})));
@@ -14620,26 +14779,26 @@ This package contains utility models such as for thermal comfort calculation, in
         Modelica.Blocks.Math.Gain scaleTslab(k=1.0/N_p);
 
       equation
-// Pipe hydraulics to outside
+        // Pipe hydraulics to outside
         connect(RHX_Pipe.port_a, port_a1)
           annotation (Line(points={{-88,10},{-88,100}}, color={0,127,255}));
         connect(RHX_Pipe.port_b, port_b1)
           annotation (Line(points={{-88,-10},{-88,-100}}, color={0,127,255}));
-// Thermal couplings:
-// 1) Each slab element i to the i-th pipe heat port
+        // Thermal couplings:
+        // 1) Each slab element i to the i-th pipe heat port
         for i in 1:N_p loop
           connect(Slabele[i].port_P, RHX_Pipe.heatPorts[i]);
         end for;
-// 2) All slab elements' port_R1 to the common wall port_W
+        // 2) All slab elements' port_R1 to the common wall port_W
         for i in 1:N_p loop
           connect(Slabele[i].port_R1, port_W);
         end for;
-// wire element averages into slab-level averages
+        // wire element averages into slab-level averages
         for i in 1:N_p loop
           connect(Slabele[i].LF_avg, sumLFslab.u[i]);
           connect(Slabele[i].T_avg,  sumTslab.u[i]);
         end for;
-// Averages = sums * (1/N_w)
+        // Averages = sums * (1/N_w)
         connect(sumLFslab.y, scaleLFslab.u);
         connect(scaleLFslab.y, LF_Slab);
 
@@ -14887,23 +15046,23 @@ This package contains utility models such as for thermal comfort calculation, in
             Modelica.Media.Interfaces.PartialMedium
         "Roll-bond HX fluid medium";
 
-// Geometry and discretization
+        // Geometry and discretization
         parameter Modelica.Units.SI.Length L_RHX=1.3 "length of roll-bond heat exchanger";
         parameter Modelica.Units.SI.Length W_RHX=0.563 "length of roll-bond heat exchanger";
         parameter Modelica.Units.SI.Length Th_RHX=0.0155 "Thickness of PCM in the slab";
         parameter Integer N_p( min=1) "number of descritization in pipe";
         parameter Integer N_w( min=1) "number of disc1D_element in the array";
 
-// Derived cell sizes
+        // Derived cell sizes
         parameter Modelica.Units.SI.Length L_cell=L_RHX/N_p "length of cell";
         parameter Modelica.Units.SI.Length W_cell=W_RHX "width of cell";
         parameter Modelica.Units.SI.Length d=Th_RHX/N_w "thickness of cell";
 
-// Initial temperature of the PCM
+        // Initial temperature of the PCM
         parameter Modelica.Units.SI.Temperature T_start=274.15
           "Initial Temperature of PCM";
 
-// Thermal params for the RHX-side element attached to each slab element
+        // Thermal params for the RHX-side element attached to each slab element
         parameter Modelica.Units.SI.HeatCapacity C_RHX_element=1000
           "Heat capacity of element (= cp*m)";
         parameter Modelica.Units.SI.ThermalConductance G_RHX_element=100
@@ -14911,12 +15070,12 @@ This package contains utility models such as for thermal comfort calculation, in
         parameter Modelica.Units.SI.Temperature T_start_RHX_element=293.15
           "Temperature of element";
 
-// Pipe sizing
+        // Pipe sizing
         parameter Modelica.Units.SI.Length RHX_Equi_diameter=0.01
           "RHX equivalent diameter";
         parameter Modelica.Units.SI.Length RHX_Equi_length=1.3 "Length of the pipe";
 
-// === Array of slab elements (size = N_p) ===
+        // === Array of slab elements (size = N_p) ===
         Slab_element_1D Slabele_R[N_p](
           each L_cell=L_cell,
           each W_cell=W_cell,
@@ -14939,13 +15098,13 @@ This package contains utility models such as for thermal comfort calculation, in
           each T_start_RHX_element=T_start_RHX_element)
           annotation (Placement(transformation(extent={{-40,-10},{-60,10}})));
 
-// External heat port (all ele[i].port_R1 connect here)
+        // External heat port (all ele[i].port_R1 connect here)
         Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_a port_WR
           annotation (Placement(transformation(extent={{90,-10},{110,10}})));
         Modelica.Thermal.HeatTransfer.Interfaces.HeatPort_a port_WL
           annotation (Placement(transformation(extent={{-110,-10},{-90,10}})));
 
-// Pipe with multiple heat ports (one per segment)
+        // Pipe with multiple heat ports (one per segment)
         AGRI_COOL.Buildings.Fluid.FixedResistances.Pipe RHX_Pipe(
           redeclare package Medium = Medium_RHX,
           T_start=T_start_PF,
@@ -14960,7 +15119,7 @@ This package contains utility models such as for thermal comfort calculation, in
               rotation=270,
               origin={-6,0})));
 
-// Fluid ports
+        // Fluid ports
         Modelica.Fluid.Interfaces.FluidPort_a port_a1(redeclare package Medium =
               Medium_RHX)
           "Fluid connector a (positive design flow direction is from port_a to port_b)"
@@ -14970,7 +15129,7 @@ This package contains utility models such as for thermal comfort calculation, in
           "Fluid connector b (positive design flow direction is from port_a to port_b)"
           annotation (Placement(transformation(extent={{-16,-110},{4,-90}})));
 
-// overall averages for the whole slab ===
+        // overall averages for the whole slab ===
         Modelica.Blocks.Interfaces.RealOutput LF_Slab(min=0, max=1)
           "Average liquid fraction of the entire slab"
           annotation (Placement(transformation(extent={{96,44},{116,64}})));
@@ -14986,29 +15145,29 @@ This package contains utility models such as for thermal comfort calculation, in
         parameter Modelica.Media.Interfaces.Types.Temperature T_start_PF=268.15
           "Start value of temperature for the fluid inside the pipe";
       equation
-// Pipe hydraulics to outside
+        // Pipe hydraulics to outside
         connect(RHX_Pipe.port_a, port_a1)
           annotation (Line(points={{-6,10},{-6,100}},   color={0,127,255}));
         connect(RHX_Pipe.port_b, port_b1)
           annotation (Line(points={{-6,-10},{-6,-100}},   color={0,127,255}));
-// Thermal couplings:
-// 1) Each slab element i to the i-th pipe heat port
+        // Thermal couplings:
+        // 1) Each slab element i to the i-th pipe heat port
         for i in 1:N_p loop
           connect(Slabele_R[i].port_P, RHX_Pipe.heatPorts[i]);
         end for;
-// 2) All slab elements' port_R1 to the common wall port_W
+        // 2) All slab elements' port_R1 to the common wall port_W
         for i in 1:N_p loop
           connect(Slabele_R[i].port_R1, port_WR);
         end for;
-// 1) Each slab element i to the i-th pipe heat port
+        // 1) Each slab element i to the i-th pipe heat port
         for i in 1:N_p loop
           connect(Slabele_L[i].port_P, RHX_Pipe.heatPorts[i]);
         end for;
-// 2) All slab elements' port_R1 to the common wall port_W
+        // 2) All slab elements' port_R1 to the common wall port_W
         for i in 1:N_p loop
           connect(Slabele_L[i].port_R1, port_WL);
         end for;
-// wire element averages into slab-level averages
+        // wire element averages into slab-level averages
         for i in 1:N_p loop
           connect(Slabele_R[i].LF_avg, sumLFslab.u[i]);
           connect(Slabele_R[i].T_avg,  sumTslab.u[i]);
@@ -15018,7 +15177,7 @@ This package contains utility models such as for thermal comfort calculation, in
           connect(Slabele_L[i].LF_avg, sumLFslab.u[i+N_p]);
           connect(Slabele_L[i].T_avg,  sumTslab.u[i+N_p]);
         end for;
-// Averages = sums * (1/N_w)
+        // Averages = sums * (1/N_w)
         connect(sumLFslab.y, scaleLFslab.u);
         connect(scaleLFslab.y, LF_Slab);
 
@@ -57370,7 +57529,7 @@ The performance curves are obtained from the EnergyPlus example idf file:
       268.15, 1511.425881000, 1671.282675000, 1817.297686000, 1958.486094000, 2103.863074000, 2262.443804000, 2443.243461000;
       271.15, 1517.753673000, 1689.384309000, 1848.489942000, 2004.085750000, 2165.186910000, 2340.808598000, 2539.965992000;
       274.15, 1516.082328000, 1699.050677000, 1870.810802000, 2040.377881000, 2216.767090000, 2408.993606000, 2626.072608000],
-        mCon_flow_nominal=3.43,
+        mCon_flow_nominal=2,
         mEva_flow_nominal=0.418,
         dpCon_nominal=500,
         dpEva_nominal=2000,
@@ -57585,6 +57744,7 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
         annotation (Dialog(group="Nominal condition"));
 
       Modular Circuit_2(
+        show_T=true,
         redeclare package MediumCon = Medium_Cond,
                         redeclare package MediumEva = Medium_Evap,
         use_intSafCtr=false,
@@ -57596,6 +57756,8 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
         mEva_flow_nominal=mChilWat_flow_nominal,
         dpEva_nominal=2000,
         use_evaCap=false,
+        initType=Modelica.Blocks.Types.Init.SteadyState,
+        energyDynamics=Modelica.Fluid.Types.Dynamics.FixedInitial,
         QCoo_flow_nominal=-3000,
         redeclare model RefrigerantCycleChillerCooling =
             RefrigerantCycleChillerCooling,
@@ -57603,6 +57765,7 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
         TConCoo_nominal=303.15)
         annotation (Placement(transformation(extent={{-52,-10},{-32,10}})));
       Modular Circuit_1(
+        show_T=true,
         redeclare package MediumCon = Medium_Cond,
                         redeclare package MediumEva = Medium_Evap,
         use_intSafCtr=false,
@@ -57614,6 +57777,8 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
         mEva_flow_nominal=mChilWat_flow_nominal,
         dpEva_nominal=2000,
         use_evaCap=false,
+        initType=Modelica.Blocks.Types.Init.SteadyState,
+        energyDynamics=Modelica.Fluid.Types.Dynamics.FixedInitial,
         QCoo_flow_nominal=-3000,
                         redeclare model RefrigerantCycleChillerCooling =
             RefrigerantCycleChillerCooling,
@@ -57624,7 +57789,7 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
           redeclare package Medium = Medium_Evap,
         m_flow_nominal=mChilWat_flow_nominal,
         dp_nominal=100)
-        annotation (Placement(transformation(extent={{-10,-16},{10,4}})));
+        annotation (Placement(transformation(extent={{10,-16},{-10,4}})));
       Modelica.Blocks.Interfaces.RealInput ySet_C2
         "Relative compressor speed between 0 and 1"
         annotation (Placement(transformation(extent={{-128,-56},{-88,-16}}),
@@ -57700,10 +57865,6 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
       Modelica.Blocks.Sources.Constant smallValue(k=1e-4)
         annotation (Placement(transformation(extent={{-100,-122},{-90,-112}})));
     equation
-      connect(Circuit_2.port_a2, res.port_a)
-        annotation (Line(points={{-32,-6},{-10,-6}}, color={0,127,255}));
-      connect(Circuit_1.port_b2, res.port_b)
-        annotation (Line(points={{34,-6},{10,-6}}, color={0,127,255}));
       connect(Circuit_2.ySet, ySet_C2) annotation (Line(points={{-53.1,1.9},{-82,1.9},
               {-82,-36},{-108,-36}}, color={0,0,127}));
       connect(Circuit_1.ySet, ySet_C1) annotation (Line(points={{32.9,1.9},{24,1.9},
@@ -57771,6 +57932,10 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
             color={0,0,127}));
       connect(addAviod0Dev.y, division_COP.u2) annotation (Line(points={{-41.4,
               -108},{-28,-108},{-28,-90}}, color={0,0,127}));
+      connect(Circuit_1.port_b2, res.port_a)
+        annotation (Line(points={{34,-6},{10,-6}}, color={0,127,255}));
+      connect(res.port_b, Circuit_2.port_a2)
+        annotation (Line(points={{-10,-6},{-32,-6}}, color={0,127,255}));
       annotation (Icon(coordinateSystem(preserveAspectRatio=false), graphics={
             Rectangle(
               extent={{-100,100},{102,-100}},
@@ -57980,7 +58145,7 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
     model PvPanels
       "PV array: N modules in parallel; total power is sum(pv[i].P). All share same weather and AC terminal."
 
-// ===== User-set parameters =====
+      // ===== User-set parameters =====
       parameter Integer nPV(min=1) = 4 "Number of PV modules";
       parameter Real A = 1.63 "Module area [m2]";
       parameter Real fAct = 0.89 "Active area fraction [-]";
@@ -57991,26 +58156,26 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
       parameter Real V_nominal = 29.7 "Nominal AC terminal voltage [V]";
       parameter Modelica.Units.SI.Frequency f = 60 "AC frequency [Hz]";
 
-// ===== Weather + fixed AC source =====
+      // ===== Weather + fixed AC source =====
       AGRI_COOL.Buildings.Electrical.AC.OnePhase.Sources.FixedVoltage sou(
         f=f, V=V_nominal) "Common AC terminal for all PV modules"
         annotation (Placement(transformation(extent={{-120,-10},{-100,10}})));
 
-// ===== PV modules (array) =====
+      // ===== PV modules (array) =====
       AGRI_COOL.Buildings.Electrical.AC.OnePhase.Sources.PVSimpleOriented pv[nPV](
         each A=A, each fAct=fAct, each eta=eta,
         each til=til, each azi=azi, each V_nominal=V_nominal)
         "Identical PV modules wired in parallel to the same AC terminal"
         annotation (Placement(transformation(extent={{-10,60},{30,120}})));
 
-// ===== Outputs =====
+      // ===== Outputs =====
       // Total power as a connector (signal)
       Modelica.Blocks.Interfaces.RealOutput P_total
         "Total array power = sum(pv[i].P) [W]"
         annotation (Placement(transformation(extent={{126,-12},{146,8}}),
             iconTransformation(extent={{126,-12},{146,8}})));
 
-// (Optional) expose per-module power; uncomment if you want it
+      // (Optional) expose per-module power; uncomment if you want it
       // Modelica.Blocks.Interfaces.RealOutput P_each[nPV] "Per-module power [W]";
       // Block to sum real signals
       Modelica.Blocks.Math.Sum sumP(nin=nPV) "Summation of pv[i].P signals";
@@ -58020,18 +58185,18 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
          Placement(transformation(extent={{-86,76},{-66,96}}), iconTransformation(
               extent={{-136,72},{-94,106}})));
     equation
-// --- Weather bus: same bus to every PV
+      // --- Weather bus: same bus to every PV
       for i in 1:nPV loop
         connect(weaBus, pv[i].weaBus);
       end for;
-// --- Electrical: all PV terminals to the same fixed-voltage terminal (parallel)
+      // --- Electrical: all PV terminals to the same fixed-voltage terminal (parallel)
       for i in 1:nPV loop
         connect(pv[i].terminal, sou.terminal);
       end for;
-// --- Power sum: wire pv[i].P -> sum block -> total output
+      // --- Power sum: wire pv[i].P -> sum block -> total output
       for i in 1:nPV loop
         connect(pv[i].P, sumP.u[i]);
-// connect(pv[i].P, P_each[i]); // (optional) per-module power
+        // connect(pv[i].P, P_each[i]); // (optional) per-module power
       end for;
       connect(sumP.y, P_total);
 
@@ -58303,7 +58468,7 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
         "PV DC power out (for plotting)"
         annotation (Placement(transformation(extent={{-10,-10},{10,10}}, origin={96,78})));
 
-// --- Supercap + electrical side (DC bus is superCap.p node) ---
+      // --- Supercap + electrical side (DC bus is superCap.p node) ---
       Modelica.Electrical.Batteries.BatteryStacks.SuperCap superCap(
         Vnom=48,
         C=5000,          Rs=0.002, Idis=0.05, useHeatPort=false)
@@ -58312,40 +58477,40 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
       Modelica.Electrical.Analog.Basic.Ground ground
         annotation (Placement(transformation(extent={{50,-232},{70,-212}})));
 
-// PV-side controlled current source (injects surplus into the DC bus)
+      // PV-side controlled current source (injects surplus into the DC bus)
       Modelica.Electrical.Analog.Sources.SignalCurrent iSrcPV
         annotation (Placement(transformation(extent={{10,-10},{-10,10}}, rotation=90, origin={-104,
                 -128})));
 
-// Load-side controlled current source (draws 200 W from DC bus)
+      // Load-side controlled current source (draws 200 W from DC bus)
       Modelica.Electrical.Analog.Sources.SignalCurrent iSinkLoad
         annotation (Placement(transformation(extent={{10,-10},{-10,10}}, rotation=180, origin={-52,-130})));
 
-// Power sensor on the PV/charge path to track energy delivered to the cap
+      // Power sensor on the PV/charge path to track energy delivered to the cap
       Modelica.Electrical.Analog.Sensors.PowerSensor powerSensor
         annotation (Placement(transformation(extent={{44,-102},{64,-82}})));
 
       Modelica.Blocks.Continuous.Integrator energy(u(unit="W"), y(unit="J"))
         annotation (Placement(transformation(extent={{6,-6},{-6,6}},     origin={-44,-88})));
 
-// =========================
+      // =========================
       // Measurements and helpers
       // =========================
       // Cap/bus voltage measurement
       Modelica.Electrical.Analog.Sensors.VoltageSensor vCap
         annotation (Placement(transformation(extent={{-10,-10},{10,10}}, origin={10,-144})));
 
-// Avoid divide-by-zero at low voltage
+      // Avoid divide-by-zero at low voltage
       Modelica.Blocks.Nonlinear.Limiter vFloor(uMin=5, uMax=1e6)
         annotation (Placement(transformation(extent={{-10,-10},{10,10}}, origin={82,-32})));
 
-// 1) PV power path: clip at >= 0, then apply efficiency
+      // 1) PV power path: clip at >= 0, then apply efficiency
       Modelica.Blocks.Nonlinear.Limiter pLim(uMin=0, uMax=1e9)
         annotation (Placement(transformation(extent={{-156,-24},{-136,-4}})));
       Modelica.Blocks.Sources.Constant eta_AC2DC(k=0.95) "Converter efficiency"
         annotation (Placement(transformation(extent={{-14,-14},{6,6}})));
 
-// 2) Equipment load demand (200 W), with under-voltage cutoff
+      // 2) Equipment load demand (200 W), with under-voltage cutoff
       parameter Real Pload = 5000 "Equipment rated power [W]";
       parameter Real VminLoad = 10 "Equipment undervoltage cutoff [V]";
       Modelica.Blocks.Sources.Constant PEquip_W(k=Pload) annotation (Placement(
@@ -58355,7 +58520,7 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
         annotation (Placement(transformation(extent={{-10,-10},{10,10}}, origin={-212,
                 -136})));
 
-// 3) Compute Equipment sink current: iEquipment = PEquipment_eff / max(Vcap, vFloor)
+      // 3) Compute Equipment sink current: iEquipment = PEquipment_eff / max(Vcap, vFloor)
       Modelica.Blocks.Math.Division pEquip_over_v annotation (Placement(
             transformation(extent={{10,-10},{-10,10}}, origin={-332,-4})));
       Modelica.Blocks.Nonlinear.Limiter iEquipLim(uMin=0, uMax=100)
@@ -58365,7 +58530,7 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
         annotation (Placement(transformation(extent={{-10,-10},{10,10}}, origin={-298,
                 -70})));
 
-// 4) Surplus power for charging: Psur = max(Ppv_pos - PEquipment_eff, 0)
+      // 4) Surplus power for charging: Psur = max(Ppv_pos - PEquipment_eff, 0)
       //Modelica.Blocks.Math.MinMax subP( loadPowerFirst=true)
       //"Outputs yMin=min(u1,u2), yMax=max(u1,u2); here we use it to compute Psur"
       //annotation (Placement(transformation(extent={{-10,-10},{10,10}}, origin={-42,-72})));
@@ -58437,13 +58602,13 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
       Modelica.Blocks.Sources.Constant smallValue(k=1e-4)
         annotation (Placement(transformation(extent={{-224,0},{-234,10}})));
     equation
-// --- PV outputs (plotting only) ---
-// Weather bus to PV
-// --- DC bus and ground ---
+      // --- PV outputs (plotting only) ---
+      // Weather bus to PV
+      // --- DC bus and ground ---
       connect(superCap.n, ground.p)
         annotation (Line(points={{92,-124},{100,-124},{100,-176},{60,-176},{60,-212}},
                                                                                      color={0,0,255}));
-// PV charge path: current source → powerSensor → supercap.p
+      // PV charge path: current source → powerSensor → supercap.p
       connect(iSrcPV.n, ground.p)
         annotation (Line(points={{-104,-138},{-104,-168},{60,-168},{60,-212}},
                                                                              color={0,0,255}));
@@ -58458,52 +58623,52 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
       connect(powerSensor.pc, powerSensor.pv)
         annotation (Line(points={{44,-92},{32,-92},{32,-78},{54,-78},{54,-82}},
                                                                               color={0,0,255}));
-// Load sink path: current source from DC bus to ground (negative current command)
+      // Load sink path: current source from DC bus to ground (negative current command)
       connect(iSinkLoad.n, ground.p)
         annotation (Line(points={{-42,-130},{-20,-130},{-20,-120},{24,-120},{24,-148},
               {60,-148},{60,-212}},                                          color={0,0,255}));
-// Energy integration of power into the cap
-// --- Measurements and helpers ---
-// Measure Vcap between superCap.p and ground
+      // Energy integration of power into the cap
+      // --- Measurements and helpers ---
+      // Measure Vcap between superCap.p and ground
       connect(vCap.p, superCap.p)
         annotation (Line(points={{0,-144},{-16,-144},{-16,-124},{72,-124}},   color={0,0,255}));
       connect(vCap.n, ground.p)
         annotation (Line(points={{20,-144},{60,-144},{60,-212}}, color={0,0,255}));
-// Voltage floor and routing
+      // Voltage floor and routing
       connect(vCap.v, vFloor.u)
         annotation (Line(points={{10,-155},{10,-192},{-160,-192},{-160,-100},{
               -104,-100},{-104,-40},{-84,-40},{-84,-36},{60,-36},{60,-32},{70,-32}},                     color={0,0,127}));
-// --- PV power pre-processing ---
-// --- Equip load enable and current sink calculation ---
+      // --- PV power pre-processing ---
+      // --- Equip load enable and current sink calculation ---
       connect(PEquip_W.y, loadPowerSel.u1) annotation (Line(points={{-279,-116},
               {-232,-116},{-232,-128},{-224,-128}},       color={0,0,127}));
-// desired 200 W
-// selector: true when V > VminLoad
-// else 0 W
-// iEquip = PEquip_eff / max(Vcap, vFloor)
+      // desired 200 W
+      // selector: true when V > VminLoad
+      // else 0 W
+      // iEquip = PEquip_eff / max(Vcap, vFloor)
       connect(pEquip_over_v.y, iEquipLim.u) annotation (Line(points={{-343,-4},{-374,
               -4},{-374,-42},{-364,-42}}, color={0,0,127}));
       connect(iEquipLim.y, iEquip.u) annotation (Line(points={{-341,-42},{-320,-42},
               {-320,-70},{-310,-70}}, color={0,0,127}));
-// negative command → sink from bus
-// --- Surplus computation for charging ---
-// pvMinusLoad = Ppv_pos - PEquip_eff
+      // negative command → sink from bus
+      // --- Surplus computation for charging ---
+      // pvMinusLoad = Ppv_pos - PEquip_eff
       connect(pLim.y, pvMinusLoad.u1)
         annotation (Line(points={{-135,-14},{-135,-16},{-128,-16},{-128,-44},{-144,-44},
               {-144,-54},{-134,-54}},                                      color={0,0,127}));
       connect(loadPowerSel.y, pvMinusLoad.u2)
         annotation (Line(points={{-201,-136},{-164,-136},{-164,-66},{-134,-66}},
                                                                    color={0,0,127}));
-// Psur = max(pvMinusLoad, 0)
+      // Psur = max(pvMinusLoad, 0)
       connect(pvMinusLoad.y, pSurLim.u)
         annotation (Line(points={{-111,-60},{-36,-60},{-36,-62},{-26,-62}},
                                                        color={0,0,127}));
-// pEff = eta * Psur
+      // pEff = eta * Psur
       connect(eta_AC2DC.y, pEff.u1) annotation (Line(points={{7,-4},{16,-4},{16,-50},
               {22,-50}}, color={0,0,127}));
       connect(pSurLim.y, pEff.u2)
         annotation (Line(points={{-3,-62},{22,-62}},color={0,0,127}));
-// iPV = (eta*Psur) / max(Vcap, vFloor)
+      // iPV = (eta*Psur) / max(Vcap, vFloor)
       connect(pEff.y, pOverV.u1)
         annotation (Line(points={{45,-56},{52,-56},{52,-12},{140,-12},{140,-28},{142,
               -28}},                                                  color={0,0,127}));
@@ -58513,13 +58678,13 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
       connect(pOverV.y, iLim.u)
         annotation (Line(points={{165,-34},{168,-34},{168,-40},{174,-40},{174,-54}},
                                                      color={0,0,127}));
-// Over-voltage stop on charging
+      // Over-voltage stop on charging
       connect(iLim.y, iEnable.u1)
         annotation (Line(points={{197,-54},{216,-54},{216,-82},{224,-82}},   color={0,0,127}));
       connect(zero.y, iEnable.u3)
         annotation (Line(points={{189,-138},{216,-138},{216,-98},{224,-98}},   color={0,0,127}));
-// Command the PV injection current source
-// Close the power sensor loop (unchanged)
+      // Command the PV injection current source
+      // Close the power sensor loop (unchanged)
       connect(iEnable.y, iPVNeg.u) annotation (Line(points={{247,-90},{250,-90},{
               250,-188},{194,-188}},        color={0,0,127}));
       connect(iPVNeg.y, iSrcPV.i) annotation (Line(points={{171,-188},{-120,-188},
@@ -58774,9 +58939,12 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
         annotation (Placement(transformation(extent={{10,-10},{-10,10}}, rotation=180, origin={292,-174})));
       Modelica.Electrical.Analog.Sensors.PowerSensor powerSensor
         annotation (Placement(transformation(extent={{356,-154},{376,-134}})));
-      Modelica.Blocks.Continuous.Integrator energy(u(unit="W"), y(unit="J"))
+      Modelica.Blocks.Continuous.Integrator energy(
+        initType=Modelica.Blocks.Types.Init.InitialState,
+                                                   u(unit="W"), y(unit="J"))
         annotation (Placement(transformation(extent={{6,-6},{-6,6}},     origin={242,-130})));
-      Modelica.Electrical.Analog.Sensors.VoltageSensor vCap
+      Modelica.Electrical.Analog.Sensors.VoltageSensor vCap(v(start=Vnom, fixed
+            =false))
         annotation (Placement(transformation(extent={{-10,-10},{10,10}}, origin={412,-182})));
       Modelica.Blocks.Nonlinear.Limiter vFloor(uMin=5, uMax=1e6)
         annotation (Placement(transformation(extent={{-10,-10},{10,10}}, origin={406,-78})));
@@ -58807,9 +58975,9 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
       Modelica.Blocks.Logical.Hysteresis hysteresis(
         uLow=Vmax - 10,
         uHigh=Vmax,
-        pre_y_start=false)
+        y(start=true, fixed=false))
         annotation (Placement(transformation(extent={{480,-148},{500,-128}})));
-      Modelica.Blocks.Logical.Not not1
+      Modelica.Blocks.Logical.Not not1(y(start=false, fixed=true))
         annotation (Placement(transformation(extent={{514,-148},{534,-128}})));
       Modelica.Blocks.Sources.RealExpression realExpression(y=(vCap.v^2 - Vmin_100^2)
             /(Vmax^2 - Vmin_100^2))
@@ -58829,6 +58997,18 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
             iconTransformation(extent={{-15,-15},{15,15}}, origin={639,69})));
       Modelica.Blocks.Interfaces.RealInput PLoadSW
         annotation (Placement(transformation(extent={{-70,-136},{-30,-96}})));
+      Modelica.Blocks.Math.Add add
+        annotation (Placement(transformation(extent={{438,-92},{450,-80}})));
+      Modelica.Blocks.Sources.Constant smallValue(k=1e-4)
+        annotation (Placement(transformation(extent={{392,-122},{402,-112}})));
+      Modelica.Blocks.Continuous.FirstOrder firstOrder(T=2, initType=Modelica.Blocks.Types.Init.InitialState,
+        y_start=2)                                            annotation (
+        Placement(transformation(extent={{588,-218},{608,-198}})));
+      Modelica.Blocks.Continuous.FirstOrder firstOrder1(T=2, initType=Modelica.Blocks.Types.Init.InitialState,
+        y_start=2)                                            annotation (
+        Placement(transformation(extent={{-10,-10},{10,10}},
+            rotation=0,
+            origin={200,-152})));
     equation
       connect(superCap.n,ground. p)
         annotation (Line(points={{442,-142},{452,-142},{452,-196},{356,-196},{356,-272},
@@ -58871,9 +59051,6 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
       connect(pEff.y,pOverV. u1)
         annotation (Line(points={{369,-102},{376,-102},{376,-58},{464,-58},{464,-74},
               {466,-74}},                                             color={0,0,127}));
-      connect(vFloor.y,pOverV. u2)
-        annotation (Line(points={{417,-78},{460,-78},{460,-86},{466,-86}},
-                                                                        color={0,0,127}));
       connect(pOverV.y,iLim. u)
         annotation (Line(points={{489,-80},{492,-80},{492,-86},{498,-86},{498,-100}},
                                                      color={0,0,127}));
@@ -58882,8 +59059,6 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
                                                                              color={0,0,127}));
       connect(zero.y,iEnable. u3)
         annotation (Line(points={{513,-184},{540,-184},{540,-144},{548,-144}}, color={0,0,127}));
-      connect(iEnable.y,iPVNeg. u) annotation (Line(points={{571,-136},{574,-136},{574,
-              -234},{518,-234}},            color={0,0,127}));
       connect(iPVNeg.y,iSrcPV. i) annotation (Line(points={{495,-234},{495,-236},{212,
               -236},{212,-178},{218,-178}},               color={0,0,127}));
       connect(superCap.p,powerSensor1. nc) annotation (Line(points={{422,-142},{400,
@@ -58919,15 +59094,29 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
       connect(pTotal, pLim.u) annotation (Line(points={{-54,70},{60,70},{60,-44},{160,
               -44},{160,-60},{166,-60}},
                           color={0,0,127}));
-      connect(iLoad, iSinkLoad.i) annotation (Line(points={{-58,-26},{-60,-26},{-60,
-              -84},{176,-84},{176,-156},{272,-156},{272,-192},{284,-192},{284,-196},
-              {292,-196},{292,-186}},                       color={0,0,127}));
       connect(vCap.v, vSupCap) annotation (Line(points={{412,-193},{412,-204},{428,-204},
               {428,-276},{-76,-276},{-76,-267},{-101,-267}},
                            color={0,0,127}));
       connect(PLoadSW, pvMinusLoad.u2) annotation (Line(points={{-50,-116},{-52,-116},
               {-52,-80},{212,-80},{212,-94},{230,-94}},
                                                 color={0,0,127}));
+      connect(smallValue.y,add. u2) annotation (Line(points={{402.5,-117},{416,-117},
+              {416,-96},{428,-96},{428,-89.6},{436.8,-89.6}},
+                              color={0,0,127}));
+      connect(vFloor.y, add.u1) annotation (Line(points={{417,-78},{417,-76},{424,-76},
+              {424,-82.4},{436.8,-82.4}}, color={0,0,127}));
+      connect(add.y, pOverV.u2)
+        annotation (Line(points={{450.6,-86},{466,-86}}, color={0,0,127}));
+      connect(iEnable.y, firstOrder.u) annotation (Line(points={{571,-136},{584,
+              -136},{584,-192},{580,-192},{580,-208},{586,-208}}, color={0,0,
+              127}));
+      connect(firstOrder.y, iPVNeg.u) annotation (Line(points={{609,-208},{616,
+              -208},{616,-250},{518,-250},{518,-234}}, color={0,0,127}));
+      connect(iLoad, firstOrder1.u) annotation (Line(points={{-58,-26},{-60,-26},
+              {-60,-84},{176,-84},{176,-152},{188,-152}}, color={0,0,127}));
+      connect(firstOrder1.y, iSinkLoad.i) annotation (Line(points={{211,-152},{
+              272,-152},{272,-192},{284,-192},{284,-196},{292,-196},{292,-186}},
+            color={0,0,127}));
       annotation (Icon(coordinateSystem(preserveAspectRatio=false, extent={{-100,
                 -320},{660,100}}), graphics={Rectangle(
               extent={{-26,72},{596,-288}},
@@ -59028,77 +59217,53 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
       import Modelica.Units.SI;
       import Modelica.Blocks.Interfaces.{RealInput, RealOutput};
 
-// --- Parameters ---
-      parameter Real E[4] = {150, 350, 500, 575}
-        "Irradiance thresholds [W/m2]";
-      parameter Real F[4] = { 80, 133, 186, 240}
-        "Frequencies [Hz] at steps 1..4";
+      parameter Real E[4] = {150, 350, 500, 575} "Irradiance thresholds [W/m2]";
+      parameter Real F[4] = { 80, 133, 186, 240} "Frequencies [Hz] at steps 1..4";
       parameter Real Fmax = 240 "Maximum frequency [Hz]";
       parameter SI.Time upDelay   = 100 "Upgrade delay [s]";
       parameter SI.Time downDelay = 250 "Downgrade delay [s]";
 
-// --- Input (Irradiance) ---
-      RealInput G "Irradiance [W/m2]"
+      RealInput  G "Irradiance [W/m2]"
         annotation(Placement(transformation(extent={{-120,-20},{-100,20}})));
-
-// --- Output (Normalized frequency) ---
       RealOutput freqNorm "Normalized compressor frequency (Hz/Fmax)"
         annotation(Placement(transformation(extent={{100,-20},{120,20}})));
 
     protected
-      //Integer desStep(start=0);
-      //Integer step(start=0);
-      //discrete Integer desStep(start=0);
-      //discrete Integer step(start=0);
-         Integer desStep;
-       Integer step;
+      Integer desStep;
+      discrete Integer  ctrlStep(start=0,           fixed=true);
+      discrete SI.Time  nextUpTime(start=upDelay,   fixed=true);
+      discrete SI.Time  nextDownTime(start=downDelay, fixed=true);
       Real freqHz;
-      SI.Time nextUpTime(start=0);
-      SI.Time nextDownTime(start=0);
+
+    equation
+      desStep =
+        if G < E[1] then 0
+        elseif G < E[2] then 1
+        elseif G < E[3] then 2
+        elseif G < E[4] then 3
+        else 4;
 
     algorithm
-// Irradiance → desired step
-      if G < E[1] then
-        desStep := 0;
-      elseif G < E[2] then
-        desStep := 1;
-      elseif G < E[3] then
-        desStep := 2;
-      elseif G < E[4] then
-        desStep := 3;
-      else
-        desStep := 4;
-      end if;
-// Initialization
-      when initial() then
-        step := 0;
-        nextUpTime   := time + upDelay;
-        nextDownTime := time + downDelay;
-      end when;
-// Upgrade step
-      when {time >= pre(nextUpTime) and desStep > pre(step)} then
-        step := min(pre(step) + 1, desStep);
+      // Timed upgrade: ALWAYS re-arm timer
+      when time >= pre(nextUpTime) then
+        if desStep > pre(ctrlStep) then
+          ctrlStep := min(pre(ctrlStep) + 1, desStep);
+        end if;
         nextUpTime := time + upDelay;
       end when;
-// Downgrade step
-      when {time >= pre(nextDownTime) and desStep < pre(step)} then
-        step := max(pre(step) - 1, desStep);
+
+      // Timed downgrade: ALWAYS re-arm timer
+      when time >= pre(nextDownTime) then
+        if desStep < pre(ctrlStep) then
+          ctrlStep := max(pre(ctrlStep) - 1, desStep);
+        end if;
         nextDownTime := time + downDelay;
       end when;
-// Compute frequency Hz → normalize
-      freqHz := if step == 0 then 0.0 else F[step];
-      freqNorm := freqHz / Fmax;
 
-    annotation (
-      Icon(coordinateSystem(preserveAspectRatio=true, extent={{-100,-100},{100,100}}),
-        graphics={
-          Rectangle(extent={{-100,-100},{100,100}}, lineColor={0,0,255}, fillColor={230,230,250}, fillPattern=FillPattern.Solid),
-          Text(string="Compressor\nStep Ctrl", extent={{-80,30},{80,-30}}, fontSize=12, lineColor={0,0,0}),
-            Text(
-              extent={{-90,48},{102,-74}},
-              textColor={28,108,200},
-              textString="ChillerCompCon
-")}), Diagram(coordinateSystem(preserveAspectRatio=true, extent={{-100,-100},{100,100}})));
+    equation
+      // Safe mapping to frequency
+      freqHz   = if ctrlStep == 0 then 0.0 else F[ctrlStep];
+      freqNorm = freqHz / Fmax;
     end CompressorStepController;
 
     model test0
@@ -59202,10 +59367,9 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
     protected
       Real tDay "Hour of day (0..24)";
     equation
-
-// Compute current hour of day
+      // Compute current hour of day
       tDay = mod(time, period)/3600;
-// Daytime is 6 <= tDay < 18
+      // Daytime is 6 <= tDay < 18
       isDay = (tDay >= 6) and (tDay < 18);
       annotation (
         Icon(graphics={
@@ -59235,7 +59399,7 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
         "Night mode: off=false, pulseOnOff=true"
     annotation(choices(choice=false "off", choice=true "pulseOnOff"));
 
-// --- Sources ---
+      // --- Sources ---
       Modelica.Blocks.Sources.BooleanExpression nightSignal(
         y = nightMode)
         "Boolean signal based on user selection"
@@ -59252,7 +59416,7 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
       Modelica.Blocks.Sources.Constant Zero(k=0) "No radiation"
         annotation (Placement(transformation(extent={{-6,-20},{14,0}})));
 
-// --- Logic ---
+      // --- Logic ---
       Modelica.Blocks.Logical.Switch CompSignalEnable1
         annotation (Placement(transformation(extent={{-10,-10},{10,10}}, origin={48,8})));
 
