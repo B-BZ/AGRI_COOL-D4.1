@@ -416,9 +416,16 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+*.C
+*.exe
+*.xml
+
 
 # result files
 *.mat
+*.csv
+*.txt
+*.png 
 
 # Data Folders that caused error in staging
 Modelica_Model/AGRI_COOL/Resources/Data

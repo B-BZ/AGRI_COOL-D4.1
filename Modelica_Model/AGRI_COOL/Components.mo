@@ -54,6 +54,7 @@ package Components
           A={AFlo,AFlo},
           til={AGRI_COOL.Buildings.Types.Tilt.Floor,AGRI_COOL.Buildings.Types.Tilt.Floor}),
         nSurBou=0,
+        T_start=288.15,
         nPorts=nPortsAir,
         energyDynamics=Modelica.Fluid.Types.Dynamics.FixedInitial) "cold room zone"
         annotation (Placement(transformation(extent={{-18,10},{22,50}})));
@@ -364,13 +365,20 @@ package Components
               extent={{-20,-20},{20,20}},
               rotation=180,
               origin={106,-34})));
+        Buildings.Fluid.Actuators.Dampers.Exponential damExp(
+          redeclare package Medium = Medium_CR,
+          m_flow_nominal=0.1,
+          dpDamper_nominal=100) annotation (Placement(transformation(
+              extent={{-10,-10},{10,10}},
+              rotation=0,
+              origin={62,50})));
+        Modelica.Blocks.Sources.Constant const(k=0)
+          annotation (Placement(transformation(extent={{28,74},{48,94}})));
       equation
         connect(Inf_Envelope.weaBus, weaBus1) annotation (Line(
             points={{-22,50},{-100,50}},
             color={255,204,51},
             thickness=0.5));
-        connect(Inf_Envelope.port_b, port_b_env)
-          annotation (Line(points={{22,50},{100,50}}, color={0,127,255}));
         connect(opeNorCor.port_a1, port_a_out) annotation (Line(points={{-16,-39.2},{-58,
                 -39.2},{-58,0},{-100,0}}, color={0,127,255}));
         connect(opeNorCor.port_b2, port_b_out) annotation (Line(points={{-16,-54.8},{-58,
@@ -383,6 +391,12 @@ package Components
           annotation (Line(points={{-110,-34},{-17.3,-34}}, color={0,0,127}));
         connect(opeNorCor.mBA_flow, mBA) annotation (Line(points={{11.3,-60},{
                 11.3,-64},{80,-64},{80,-34},{106,-34}}, color={0,0,127}));
+        connect(Inf_Envelope.port_b, damExp.port_a)
+          annotation (Line(points={{22,50},{52,50}}, color={0,127,255}));
+        connect(port_b_env, damExp.port_b)
+          annotation (Line(points={{100,50},{72,50}}, color={0,127,255}));
+        connect(const.y, damExp.y)
+          annotation (Line(points={{49,84},{62,84},{62,62}}, color={0,0,127}));
         annotation (Icon(coordinateSystem(preserveAspectRatio=false), graphics={Line(
                 points={{-80,20},{82,20},{32,46}},
                 color={28,108,200},
@@ -58973,7 +58987,7 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
       Modelica.Blocks.Math.Add SumEnergy annotation (Placement(transformation(
               extent={{6,-6},{-6,6}}, origin={298,-130})));
       Modelica.Blocks.Logical.Hysteresis hysteresis(
-        uLow=Vmax - 10,
+        uLow=Vmax - 0.5,
         uHigh=Vmax,
         y(start=true, fixed=false))
         annotation (Placement(transformation(extent={{480,-148},{500,-128}})));
@@ -59438,4 +59452,41 @@ http://www.carrier.com.kw/pdf/pdf/Chilled%20Water%20Products/30XW.pdf</a>
         Diagram(coordinateSystem(preserveAspectRatio=false)));
     end test2;
   end Controls;
+
+  package Diesel
+    model Load_Based_diesel
+      parameter Modelica.Units.SI.Power P_rated = 2500 "diesel generator rated power";
+      Modelica.Units.SI.Power P_ratio;
+
+      Modelica.Blocks.Interfaces.RealInput Diesel_Status
+        annotation (Placement(transformation(extent={{-128,-84},{-88,-44}})));
+      Modelica.Blocks.Interfaces.RealOutput Fuel_rate
+        annotation (Placement(transformation(extent={{96,-76},{116,-56}})));
+      Modelica.Blocks.Interfaces.RealOutput Fuel_Sum
+        annotation (Placement(transformation(extent={{96,52},{116,72}})));
+      Modelica.Blocks.Continuous.Integrator integrator
+        annotation (Placement(transformation(extent={{46,-4},{66,16}})));
+      Modelica.Blocks.Interfaces.RealInput Load
+        annotation (Placement(transformation(extent={{-130,34},{-90,74}})));
+
+    equation
+      P_ratio = Load / P_rated;
+
+      Fuel_rate =
+        (Diesel_Status / 3600000) *
+        (if P_ratio >= 0.25 then
+           0.1067 * P_ratio^3 - 0.08 * P_ratio^2 - 0.1867 * P_ratio + 0.4
+         else
+           0.1067 * 0.25^3 - 0.08 * 0.25^2 - 0.1867 * 0.25 + 0.4) * P_rated;
+
+      connect(Fuel_rate, integrator.u) annotation (Line(points={{106,-66},{12,-66},{
+              12,6},{44,6}}, color={0,0,127}));
+      connect(integrator.y, Fuel_Sum) annotation (Line(points={{67,6},{76,6},{76,8},
+              {80,8},{80,62},{106,62}}, color={0,0,127}));
+      annotation (Icon(coordinateSystem(preserveAspectRatio=false), graphics={
+              Rectangle(extent={{-92,82},{96,-90}}, lineColor={28,108,200})}),
+                                                                     Diagram(
+            coordinateSystem(preserveAspectRatio=false)));
+    end Load_Based_diesel;
+  end Diesel;
 end Components;
